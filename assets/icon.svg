@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- dsh-ha-ingress-auth app icon: a house (Home Assistant users) holding a chat prompt (the harness). Original artwork. -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="#1f3a8a"/>
+  <path d="M64 24 L106 58 V100 a6 6 0 0 1 -6 6 H28 a6 6 0 0 1 -6 -6 V58 Z" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M42 66 L54 76 L42 86" fill="none" stroke="#7dd3fc" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M62 88 H84" stroke="#7dd3fc" stroke-width="7" stroke-linecap="round"/>
+</svg>

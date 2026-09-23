@@ -32,11 +32,18 @@ export async function dismissFirstRun(page) {
   const later = page.getByRole('button', { name: 'Configure later' })
   // The dialogs can appear a moment after the shell (settings load, or a
   // reload after the gateway syncs shared settings). Settle for 3 quiet seconds.
+  // A button stays visible but disabled while its choice is saved, then the
+  // dialog closes: click only enabled buttons, and never wait long for one, or
+  // a click on a closing dialog waits for a button that never comes back.
+  const clickIfReady = async (button) => {
+    if (!(await button.isVisible().catch(() => false))) return false
+    if (await button.isEnabled().catch(() => false)) await button.click({ timeout: 2_000 }).catch(() => {})
+    return true
+  }
   let quiet = 0
   const deadline = Date.now() + 30_000
   while (quiet < 6 && Date.now() < deadline) {
-    if (await cont.isVisible().catch(() => false)) { await cont.click().catch(() => {}); quiet = 0 }
-    else if (await later.isVisible().catch(() => false)) { await later.click().catch(() => {}); quiet = 0 }
+    if (await clickIfReady(cont) || await clickIfReady(later)) quiet = 0
     else quiet++
     await page.waitForTimeout(500)
   }

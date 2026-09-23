@@ -50,7 +50,10 @@ function readOptions(dataRoot) {
 
 const layout = new Layout(values.data)
 const options = readOptions(values.data)
-const idleMinutes = Number.isFinite(options.idle_timeout_minutes) ? options.idle_timeout_minutes : 30
+const envNumber = (name) => (process.env[name] !== undefined && process.env[name] !== '' && Number.isFinite(Number(process.env[name])) ? Number(process.env[name]) : undefined)
+const idleMinutes = envNumber('DSH_HA_IDLE_MINUTES') ?? (Number.isFinite(options.idle_timeout_minutes) ? options.idle_timeout_minutes : 30)
+const cullIntervalMs = envNumber('DSH_HA_CULL_INTERVAL_MS') ?? 30000
+const archiveIntervalMs = envNumber('DSH_HA_ARCHIVE_INTERVAL_MS') ?? 5 * 60000
 const userTools = Array.isArray(options.user_tools) && options.user_tools.length > 0 ? options.user_tools : undefined
 const trustedPeers = values['trusted-peer'] ?? (process.env.DSH_HA_TRUSTED_PEERS?.split(',') ?? ['172.30.32.2'])
 const isolate = !values['no-isolate'] && typeof process.getuid === 'function' && process.getuid() === 0
@@ -124,10 +127,10 @@ const timers = [
   setInterval(() => { try { shared.tick() } catch (error) { log(`[gateway] sync failed: ${error.message}`) } }, 2000),
   setInterval(() => {
     children.cull({ idleMs: idleMinutes * 60000, isBusy }).catch((error) => log(`[gateway] cull failed: ${error.message}`))
-  }, 30000),
+  }, cullIntervalMs),
   setInterval(() => {
     archiveDeletedUsers({ directory, children, layout, log }).catch((error) => log(`[gateway] archive check failed: ${error.message}`))
-  }, 5 * 60000),
+  }, archiveIntervalMs),
 ]
 
 let stopping = false

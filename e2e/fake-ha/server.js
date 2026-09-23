@@ -161,12 +161,17 @@ server.listen(PORT, LISTEN, () => console.log(`fake-ha on ${LISTEN}:${PORT} → 
 //   after a tool result                        → "tool result: <first 200 chars>"
 //   otherwise                                  → "stub reply: <last user text>"
 
+/** Text parts dsh adds on its own (runtime context snapshots, reminders). */
+const isHarnessText = (t) => /^\s*(Current runtime context|<system-reminder>|<runtime)/.test(t)
+
 function lastUserText(messages) {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]
     if (m.role !== 'user') continue
-    if (typeof m.content === 'string') return m.content
-    if (Array.isArray(m.content)) return m.content.filter((p) => p.type === 'text').map((p) => p.text).join(' ')
+    const parts = typeof m.content === 'string' ? [m.content]
+      : Array.isArray(m.content) ? m.content.filter((p) => p.type === 'text').map((p) => p.text) : []
+    const human = parts.filter((t) => !isHarnessText(t))
+    if (human.length) return human.join(' ')
   }
   return ''
 }
@@ -182,6 +187,7 @@ function plan(body) {
   const last = messages[messages.length - 1]
   if (last?.role === 'tool') return { text: `tool result: ${contentText(last.content).slice(0, 200)}` }
   const text = lastUserText(messages)
+  if (/Generate the session title/.test(text)) return { text: 'Stub title' }
   const match = /TOOL:([a-z_]+)\s+(\{.*\})/s.exec(text)
   if (match) return { tool: { name: match[1], args: match[2] } }
   return { text: `stub reply: ${text.replace(/\s+/g, ' ').trim().slice(0, 200)}` }

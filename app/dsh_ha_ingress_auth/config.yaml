@@ -20,10 +20,12 @@ panel_admin: false
 homeassistant_api: true
 options:
   idle_timeout_minutes: 30
-  # One MCP server per line as "name=url". Each becomes a Streamable HTTP MCP
-  # entry in every user's dsh (tools like mcp__name__tool). Empty disables;
-  # set your own servers in the app's Settings page on Home Assistant.
-  mcp_servers: ""
+  # Remote MCP servers every user's dsh connects to: one name/URL pair per
+  # server (Streamable HTTP). Tools appear as mcp__name__tool. An empty list
+  # disables. Edit in the app's Settings page on Home Assistant.
+  mcp_servers: []
 schema:
   idle_timeout_minutes: int(0,1440)
-  mcp_servers: str?
+  mcp_servers:
+    - name: str
+      url: url

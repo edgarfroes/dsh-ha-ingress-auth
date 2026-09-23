@@ -37,7 +37,7 @@ roles:
 | Option | Default | Meaning |
 |---|---|---|
 | `idle_timeout_minutes` | `30` | Stop a user's dsh after this many minutes with no open browser and no reply running (`0` = never). Admins' dsh is never stopped, so scheduled work keeps running. The next visit starts it again with its history. |
-| `mcp_servers` | *(blank)* | Remote MCP servers every user's dsh connects to, one `name=url` per line (Streamable HTTP). Tools appear as `mcp__name__tool` and non-admins may call exactly those tool families. A server that is down only logs a warning; dsh starts without its tools. |
+| `mcp_servers` | *(empty)* | Remote MCP servers every user's dsh connects to, added as repeatable name/URL pairs (Streamable HTTP). Tools appear as `mcp__name__tool` and non-admins may call exactly those tool families. A server that is down only logs a warning; dsh starts without its tools. |
 
 ## How it works
 

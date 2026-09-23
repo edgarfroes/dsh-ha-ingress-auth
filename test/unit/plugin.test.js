@@ -121,20 +121,40 @@ test('overlay adds one dsh-mcp-client row per server for both roles', () => {
   }
 })
 
-test('parseMcpServers parses name=url lines and rejects malformed input', () => {
+test('parseMcpServers parses name/url pairs and rejects malformed input', () => {
   assert.deepEqual(parseMcpServers(undefined), [])
+  assert.deepEqual(parseMcpServers(null), [])
   assert.deepEqual(parseMcpServers(''), [])
+  assert.deepEqual(parseMcpServers([]), [])
   assert.deepEqual(parseMcpServers('   \n# only a comment\n'), [])
+  // The add-on config UI collects a repeatable name/URL pair.
   assert.deepEqual(
-    parseMcpServers('# comment\nfirecrawl=http://localhost:3000/mcp\n\nplaywright=http://localhost:8931/mcp#no space'),
+    parseMcpServers(MCP_SERVERS.map(({ serverName, url }) => ({ name: serverName, url }))),
     MCP_SERVERS,
   )
-  assert.throws(() => parseMcpServers('just a word'), /name=url/)
-  assert.throws(() => parseMcpServers('bad name=http://x/mcp'), /name=url/)
-  assert.throws(() => parseMcpServers('ok=ftp://x/mcp'), /name=url/)
-  assert.throws(() => parseMcpServers('ok=b=2'), /name=url/)
-  assert.throws(() => parseMcpServers('x=http://a/mcp\nx=http://b/mcp'), /duplicate/)
-  assert.throws(() => parseMcpServers('a'.repeat(33) + '=http://x/mcp'), /name=url/)
+  // Comma-separated, newline-separated and lists of strings also work.
+  assert.deepEqual(
+    parseMcpServers('# comment,firecrawl=http://localhost:3000/mcp,,playwright=http://localhost:8931/mcp#no space'),
+    MCP_SERVERS,
+  )
+  assert.deepEqual(
+    parseMcpServers(['firecrawl=http://localhost:3000/mcp', 'playwright=http://localhost:8931/mcp']),
+    MCP_SERVERS,
+  )
+  for (const bad of [
+    'just a word',
+    'bad name=http://x/mcp',
+    'ok=ftp://x/mcp',
+    'ok=b=2',
+    'a'.repeat(33) + '=http://x/mcp',
+    ['x=http://a/mcp', 'x=http://b/mcp'],
+    [{ url: 'http://x/mcp' }],
+    [{ name: 'x', url: 'ftp://x/mcp' }],
+    [{ name: 'x', url: 'http://a/mcp', extra: 1 }, { name: 'x', url: 'http://b/mcp' }],
+    [42],
+  ]) {
+    assert.throws(() => parseMcpServers(bad), /(name=|name \(|duplicate|server name|pair)/)
+  }
 })
 
 test('buildMcpRows emits streamable-http entries with the raw url', () => {

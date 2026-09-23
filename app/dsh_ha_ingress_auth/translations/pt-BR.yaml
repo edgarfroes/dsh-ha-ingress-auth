@@ -1,0 +1,26 @@
+configuration:
+  idle_timeout_minutes:
+    name: Inatividade de não-admins (minutos)
+    description: >-
+      Encerra o processo do DeepSeek Harness de um usuário não-admin após este
+      número de minutos sem navegador aberto e sem resposta em andamento. 0
+      mantém em execução. Processos de admins nunca são encerrados, então o
+      trabalho agendado deles continua rodando.
+  mcp_servers:
+    name: Servidores MCP remotos
+    description: >-
+      Servidores Model Context Protocol aos quais o DeepSeek Harness de cada
+      usuário se conecta pela rede (Streamable HTTP), por nome e URL. As
+      ferramentas aparecem nativamente em todos os chats como
+      mcp__nome__ferramenta; um servidor inacessível gera apenas um aviso.
+      Deixe vazio para nenhum.
+    fields:
+      name:
+        name: Nome do servidor
+        description: >-
+          Identificador curto usado nos nomes das ferramentas: letras,
+          números, hífens ou sublinhados, até 32 caracteres (por exemplo
+          "firecrawl").
+      url:
+        name: URL do servidor
+        description: Endpoint MCP do servidor, por exemplo http://meu-servidor:3000/mcp.

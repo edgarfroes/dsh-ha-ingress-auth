@@ -5,3 +5,19 @@ configuration:
       Stop a non-admin user's DeepSeek Harness process after this many minutes
       with no open browser and no reply running. 0 keeps it running. Admin
       processes are never stopped, so their scheduled work keeps running.
+  mcp_servers:
+    name: Remote MCP servers
+    description: >-
+      Model Context Protocol servers every user's DeepSeek Harness connects
+      to over the network (Streamable HTTP), by name and URL. Their tools
+      appear natively in every chat as mcp__name__tool; a server that is
+      unreachable only logs a warning. Leave empty for none.
+    fields:
+      name:
+        name: Server name
+        description: >-
+          Short identifier used in the tool names, letters, numbers, dashes
+          or underscores, up to 32 characters (for example "firecrawl").
+      url:
+        name: Server URL
+        description: MCP endpoint of the server, for example http://my-server:3000/mcp.

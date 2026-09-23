@@ -121,28 +121,47 @@ const MCP_SERVER_NAME_RE = /^[A-Za-z0-9_-]{1,32}$/
 const MCP_URL_RE = /^https?:\/\/\S+$/
 
 /**
- * Parse the `mcp_servers` app option: one `name=url` per line, `#` comments
- * and blank lines ignored.
+ * Parse the `mcp_servers` app option: the add-on config UI collects it as a
+ * repeatable name/URL pair, so entries arrive as `{ name, url }` objects. A
+ * comma-separated `name=url` string (or a list of such strings) is accepted
+ * too; `#` comments and empty string items ignored.
  * @param {unknown} raw
  * @returns {{ serverName: string, url: string }[]}
- * @throws on a malformed line, a bad server name, or a duplicate name
+ * @throws on a malformed entry, a bad server name, or a duplicate name
  */
 export function parseMcpServers(raw) {
-  if (typeof raw !== 'string' || raw.trim() === '') return []
+  let entries
+  if (raw === undefined || raw === null) entries = []
+  else if (Array.isArray(raw)) entries = raw
+  else if (typeof raw === 'string' && raw.trim() === '') entries = []
+  else if (typeof raw === 'string') entries = raw.split(/[\n,]+/)
+  else throw new Error('expected a list of servers or comma-separated "name=url" entries')
   const servers = []
   const seen = new Set()
-  for (const line of raw.split('\n')) {
-    const text = line.split('#', 1)[0].trim()
-    if (text === '') continue
-    const eq = text.indexOf('=')
-    const serverName = eq === -1 ? '' : text.slice(0, eq).trim()
-    const url = eq === -1 ? '' : text.slice(eq + 1).trim()
+  const add = (serverName, url, what) => {
     if (!MCP_SERVER_NAME_RE.test(serverName) || !MCP_URL_RE.test(url)) {
-      throw new Error(`expected "name=url" (name: [A-Za-z0-9_-]{1,32}, http(s) url), got ${JSON.stringify(text)}`)
+      throw new Error(`expected a name ([A-Za-z0-9_-]{1,32}) and an http(s) url in ${what}`)
     }
     if (seen.has(serverName)) throw new Error(`duplicate server name "${serverName}"`)
     seen.add(serverName)
     servers.push({ serverName, url })
+  }
+  for (const entry of entries) {
+    if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      add(
+        typeof entry.name === 'string' ? entry.name.trim() : '',
+        typeof entry.url === 'string' ? entry.url.trim() : '',
+        JSON.stringify(entry),
+      )
+      continue
+    }
+    if (typeof entry !== 'string') {
+      throw new Error(`each mcp_servers entry must be a name/url pair or a "name=url" string, got ${typeof entry}`)
+    }
+    const text = entry.split('#', 1)[0].trim()
+    if (text === '') continue
+    const eq = text.indexOf('=')
+    add(eq === -1 ? '' : text.slice(0, eq).trim(), eq === -1 ? '' : text.slice(eq + 1).trim(), JSON.stringify(text))
   }
   return servers
 }

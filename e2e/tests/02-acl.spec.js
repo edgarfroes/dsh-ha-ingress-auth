@@ -10,12 +10,29 @@ test('non-admin sees Settings → General only, no Plugins, no Permission', asyn
   await dismissFirstRun(page)
   await expect(page.getByRole('dialog').filter({ hasText: 'Add an API key' })).toHaveCount(0)
   await expect(page.getByText('Plugins', { exact: true })).toHaveCount(0)
+  // Session list starts as "In one list" (the sidebar heads it "Sessions").
+  await expect(page.getByText('Sessions', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('Workspaces', { exact: true })).toHaveCount(0)
   const settings = await openSettings(page)
   await expect(settings.getByText('General', { exact: true })).toBeVisible()
   for (const name of ['Models', 'Built-in plugins']) await expect(settings.getByText(name, { exact: true })).toHaveCount(0)
   await expect(settings.getByText('Agent presets', { exact: true })).toBeHidden()
   await expect(settings.getByText('Permission', { exact: true })).toHaveCount(0)
   for (const name of ['Language', 'Appearance', 'Font size', 'Send behavior while busy']) {
+    await expect(settings.getByText(name, { exact: true })).toBeVisible()
+  }
+  for (const name of ['Work details', 'Performance & usage', 'Developer tools']) {
+    await expect(settings.getByText(name, { exact: true })).toBeHidden()
+  }
+  await context.close()
+})
+
+test('admins keep every General row', async ({ browser }) => {
+  const { context, page } = await openAs(browser, 'owner')
+  await dismissFirstRun(page)
+  await expect(page.getByText('Workspaces', { exact: true }).first()).toBeVisible()
+  const settings = await openSettings(page)
+  for (const name of ['Language', 'Appearance', 'Font size', 'Work details', 'Performance & usage', 'Developer tools', 'Send behavior while busy', 'Permission']) {
     await expect(settings.getByText(name, { exact: true })).toBeVisible()
   }
   await context.close()
@@ -42,6 +59,21 @@ test('non-admin cannot change shared configuration or keys, even by calling the 
   expect(invoke.status).toBe(403)
   const file = await page.evaluate(async () => (await fetch('api/file?path=/etc/passwd')).status)
   expect(file).toBe(403)
+  // Nothing a user can send reads their process's environment (where the
+  // admins' API keys are): not api/file with a smuggled second path, not file
+  // preview, not the folder picker.
+  const own = encodeURIComponent(`/data/users/${USERS.alice}/workspace/none.txt`)
+  const smuggled = await page.evaluate(async (own) => {
+    const res = await fetch(`api/file?%3Fx%26path%3D%2Fproc%2Fself%2Fenviron&path=${own}`)
+    return { status: res.status, body: await res.text() }
+  }, own)
+  expect(smuggled.body).not.toContain('DSH_HOME=')
+  expect(smuggled.body).not.toContain('API_KEY=')
+  const sessions = await rpc(page, 'session/list', { _request: {} })
+  const sid = JSON.stringify(sessions.body).match(/session-[0-9a-f-]{36}/)?.[0]
+  const preview = await rpc(page, 'workspaceFiles/read', { workspaceFileScopeId: sid, path: '/proc/self/environ' })
+  expect(preview.status).toBe(403)
+  expect((await rpc(page, 'directoryPicker/list', {})).status).toBe(403)
   // A forged identity header is replaced by ingress: alice stays alice.
   const forged = await page.evaluate(async (owner) => (await fetch('api/settings/mutate', {
     method: 'POST', headers: { 'content-type': 'application/json', 'x-remote-user-id': owner },

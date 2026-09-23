@@ -57,6 +57,12 @@ export const DEFAULT_USER_DENIED_PATHS = Object.freeze([
   /^\/api\/cordis\//,
   /^\/api\/dynamicCordisRunner\/(invoke|getClientCode|define|run|stop|undefine)$/,
   /^\/api\/terminal\//,
+  // File preview reads any path the process can read (dsh: "does not impose
+  // workspace containment on file reads"); the rows are not loaded for users
+  // either (overlays.js), this is the second line.
+  /^\/api\/workspaceFiles\//,
+  /^\/api\/directoryPicker\//,
+  /^\/api\/officeToPdf\//,
 ])
 
 /** Settings writes are allowed for non-admins only on their own preference
@@ -77,23 +83,26 @@ export function settingsWriteDenial(body, preferenceRows) {
 
 /**
  * Undo Home Assistant ingress's query re-encoding for dsh's combined plugin
- * URLs. dsh loads client bundles as `plugins/??@a/client.js,@b/client.js&rev=…`
- * (a query that itself starts with `?`). Supervisor and Core forward HTTP
- * queries as parsed parameters (aiohttp `params=request.query`), which turns
- * that first, value-less parameter into `?@a/client.js%2C@b/client.js=` or a
- * fully percent-encoded form; dsh then answers 404. Other queries are left alone.
+ * URLs, and nothing else. dsh loads client bundles as
+ * `plugins/??@a/client.js,@b/client.js&rev=…` (a query that itself starts with
+ * `?`). Supervisor and Core forward HTTP queries as parsed parameters (aiohttp
+ * `params=request.query`); yarl keeps the characters but writes that
+ * value-less first parameter as `??@a/…,@b/…=`, and dsh answers 404.
+ *
+ * Only `/plugins/` paths are touched and nothing is decoded: decoding would
+ * let `%26`/`%3D` become real separators after the request was checked. The
+ * gateway applies this before any policy check, so it checks exactly what it
+ * forwards.
  * @param {string} url request path + query
  */
 export function restoreComboQuery(url) {
   const i = url.indexOf('?')
-  if (i < 0) return url
-  const parts = url.slice(i + 1).split('&')
-  let first
-  try { first = decodeURIComponent(parts[0].replace(/\+/g, ' ')) } catch { return url }
-  if (!first.startsWith('?')) return url
-  if (first.endsWith('=')) first = first.slice(0, -1)
-  parts[0] = first
-  return `${url.slice(0, i)}?${parts.join('&')}`
+  if (i < 0 || !url.startsWith('/plugins/')) return url
+  const query = url.slice(i + 1)
+  const amp = query.indexOf('&')
+  const first = amp < 0 ? query : query.slice(0, amp)
+  if (!first.startsWith('?') || !first.endsWith('=') || first.slice(0, -1).includes('=')) return url
+  return `${url.slice(0, i)}?${first.slice(0, -1)}${amp < 0 ? '' : query.slice(amp)}`
 }
 
 /**
@@ -110,7 +119,10 @@ export function userRequestDenial(rawUrl, userRoot, denied = DEFAULT_USER_DENIED
   for (const re of denied) if (re.test(path)) return `${path} is available to Home Assistant administrators only`
   if (path === '/api/file') {
     // dsh serves any absolute path its process can read here; confine it.
-    const target = url.searchParams.get('path')
+    // dsh reads the first `path`; accept exactly one so both sides agree.
+    const all = url.searchParams.getAll('path')
+    if (all.length !== 1) return 'exactly one path is required'
+    const target = all[0]
     if (!target) return 'missing path'
     const full = resolvePath(target)
     const root = resolvePath(userRoot)
@@ -131,7 +143,7 @@ export function forwardHttp(req, res, child, hooks = {}, body = undefined) {
     host: '127.0.0.1',
     port: child.port,
     method: req.method,
-    path: restoreComboQuery(req.url ?? '/'),
+    path: req.url ?? '/',
     headers: childRequestHeaders(req.headers, child),
   }, (up) => {
     /** @type {Record<string, string | string[]>} */

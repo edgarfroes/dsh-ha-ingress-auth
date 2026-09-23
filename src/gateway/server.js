@@ -2,7 +2,7 @@
 
 import { createServer } from 'node:http'
 import { readdirSync, existsSync } from 'node:fs'
-import { forwardHttp, forwardUpgrade, userRequestDenial, SETTINGS_WRITE_PATH, settingsWriteDenial, readSmallBody } from './proxy.js'
+import { forwardHttp, forwardUpgrade, userRequestDenial, SETTINGS_WRITE_PATH, settingsWriteDenial, readSmallBody, restoreComboQuery } from './proxy.js'
 import { DEFAULT_PREFERENCE_ROWS } from './patches.js'
 import { archiveUser, tagOf } from './children.js'
 
@@ -84,6 +84,8 @@ export function createGatewayServer(deps) {
   }
 
   const server = createServer(async (req, res) => {
+    // Normalise first: every check below sees exactly the URL that is forwarded.
+    req.url = restoreComboQuery(req.url ?? '/')
     if (req.url === '/_dsh_ha/health') {
       res.writeHead(200, { 'content-type': 'text/plain' })
       res.end('ok\n')
@@ -118,6 +120,7 @@ export function createGatewayServer(deps) {
 
   server.on('upgrade', async (req, socket, head) => {
     socket.on('error', () => {})
+    req.url = restoreComboQuery(req.url ?? '/')
     const result = await admit(req)
     if (!result.ok) {
       socket.end(`HTTP/1.1 ${result.status} Refused\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`)

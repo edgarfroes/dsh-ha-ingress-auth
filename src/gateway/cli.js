@@ -60,7 +60,10 @@ const isolate = !values['no-isolate'] && typeof process.getuid === 'function' &&
 const token = process.env.SUPERVISOR_TOKEN
 
 for (const dir of [layout.dataRoot, layout.sharedRoot, layout.usersRoot, layout.runtimeRoot]) mkdirSync(dir, { recursive: true })
-for (const dir of [layout.usersRoot, layout.runtimeRoot]) chmodSync(dir, 0o755)
+// users/ is traversable but not listable: a user's process cannot enumerate
+// other HA user ids.
+chmodSync(layout.usersRoot, 0o711)
+chmodSync(layout.runtimeRoot, 0o755)
 mkdirSync(join(layout.runtimeRoot, 'overlays'), { recursive: true, mode: 0o755 })
 mkdirSync(layout.adminRoot, { recursive: true })
 if (isolate) {

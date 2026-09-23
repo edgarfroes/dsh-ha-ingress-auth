@@ -1,4 +1,0 @@
-# Home Assistant app repository (add its URL in Settings → Apps → App store → ⋮ → Repositories).
-name: DeepSeek Harness for Home Assistant
-url: https://github.com/edgarfroes/dsh-ha-ingress-auth
-maintainer: Edgar Froes

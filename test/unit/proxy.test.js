@@ -47,11 +47,25 @@ test('ingress identity: trusted peer and a user id are both required', () => {
 test('combined plugin URLs survive Home Assistant query re-encoding', () => {
   const raw = '/plugins/??@deepseek-ai/a/client.js,@deepseek-ai/b/client.js&rev=2ee1'
   assert.equal(restoreComboQuery(raw), raw)
-  // aiohttp/yarl form (Supervisor and Core): ',' encoded, '=' appended.
-  assert.equal(restoreComboQuery('/plugins/??@deepseek-ai/a/client.js%2C@deepseek-ai/b/client.js=&rev=2ee1'), raw)
-  // application/x-www-form-urlencoded form.
-  const form = `/plugins/?${new URLSearchParams([['?@deepseek-ai/a/client.js,@deepseek-ai/b/client.js', ''], ['rev', '2ee1']])}`
-  assert.equal(restoreComboQuery(form), raw)
-  assert.equal(restoreComboQuery('/api/file?path=%2Fdata%2Fx'), '/api/file?path=%2Fdata%2Fx')
+  // yarl form (Supervisor and Core): characters kept, '=' appended.
+  assert.equal(restoreComboQuery('/plugins/??@deepseek-ai/a/client.js,@deepseek-ai/b/client.js=&rev=2ee1'), raw)
+  assert.equal(restoreComboQuery('/plugins/??@deepseek-ai/a/client.js='), '/plugins/??@deepseek-ai/a/client.js')
+  // Never outside /plugins/, never decoding.
+  assert.equal(restoreComboQuery('/api/file?%3Fx%26path%3D%2Fetc%2Fhosts&path=%2Fdata'), '/api/file?%3Fx%26path%3D%2Fetc%2Fhosts&path=%2Fdata')
+  assert.equal(restoreComboQuery('/api/file??x=&path=%2Fdata'), '/api/file??x=&path=%2Fdata')
   assert.equal(restoreComboQuery('/'), '/')
+})
+
+test('api/file: an encoded separator cannot smuggle a second path past the check', () => {
+  const root = '/data/users/u1'
+  const smuggled = '/api/file?%3Fx%26path%3D%2Fproc%2Fself%2Fenviron&path=%2Fdata%2Fusers%2Fu1%2Fa.txt'
+  // What is checked is what is forwarded; dsh reads the first raw `path`,
+  // which here is the user's own file.
+  assert.equal(restoreComboQuery(smuggled), smuggled)
+  assert.equal(userRequestDenial(smuggled, root), undefined)
+  assert.equal(new URL(smuggled, 'http://x').searchParams.getAll('path').length, 1)
+  assert.match(userRequestDenial('/api/file?path=%2Fdata%2Fusers%2Fu1%2Fa&path=%2Fproc%2Fself%2Fenviron', root), /exactly one/)
+  assert.match(userRequestDenial('/api/file?path=/proc/self/environ', root), /outside/)
+  assert.match(userRequestDenial('/api/workspaceFiles/read', root), /administrators/)
+  assert.match(userRequestDenial('/api/directoryPicker/list', root), /administrators/)
 })

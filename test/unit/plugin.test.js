@@ -17,6 +17,10 @@ test('config defaults: unknown role is user; users get General-only settings', (
   assert.equal(resolveConfig({}).role, 'user')
   assert.equal(resolveConfig({}).generalSettingsOnly, true)
   assert.equal(resolveConfig({ role: 'admin' }).generalSettingsOnly, false)
+  assert.equal(resolveConfig({ role: 'admin' }).hiddenGeneralRows.length, 0)
+  assert.equal(resolveConfig({}).defaultGrouping, 'flat')
+  assert.equal(resolveConfig({ role: 'admin' }).defaultGrouping, undefined)
+  assert.deepEqual(resolveConfig({ hiddenGeneralRows: ['ok_row', 'x}{display:block'] }).hiddenGeneralRows, ['ok_row'])
 })
 
 test('plugin registers index rows and the guard for users', () => {
@@ -31,18 +35,32 @@ test('plugin registers index rows and the guard for users', () => {
   const table = []
   for (const [event, fn] of handlers) if (event === 'webserver/index-inject') fn(table)
   assert.deepEqual(table.find((r) => r.kind === 'global').value, { ownsHost: true })
-  assert.ok(table.some((r) => r.kind === 'style'))
+  assert.ok(table.some((r) => r.kind === 'style' && r.text.includes('settings.header')))
+  assert.ok(table.some((r) => r.kind === 'style' && r.text.includes('_2XZxNq_row') && r.text.includes('Pt1bsG_row')))
   assert.match(guard({ name: 'bash' }), /administrators/)
+  const script = table.find((r) => r.kind === 'script')
+  assert.ok(script && script.placement === 'head' && !script.text.includes('</script'))
+  // The script sets "In one list" once, keeps other view fields, then respects the user's choice.
+  const store = new Map([['dsh.workspace.view.v5', JSON.stringify({ groupBy: 'workspace', orderBy: 'manual' })]])
+  globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)) }
+  new Function(script.text)()
+  assert.deepEqual(JSON.parse(store.get('dsh.workspace.view.v5')), { groupBy: 'flat', orderBy: 'manual', groupExpansion: {}, sessionOrderByAccount: {}, archivedFilter: 'default' })
+  store.set('dsh.workspace.view.v5', JSON.stringify({ groupBy: 'workspace-tree' }))
+  new Function(script.text)()
+  assert.equal(JSON.parse(store.get('dsh.workspace.view.v5')).groupBy, 'workspace-tree')
+  delete globalThis.localStorage
 })
 
 test('user overlay disables admin surfaces; admin overlay shares credentials', () => {
   const user = parsePatch(buildOverlay({ role: 'user', handshakeFile: '/h', documentsDirectory: '/w' }))
   const disabled = user.filter((r) => r.disabled === true).map((r) => r.id)
-  for (const id of ['ui-settings-models', 'ui-settings-plugins', 'ui-permission', 'plugin-manager', 'ui-sidebar-terminal', 'terminal-controller']) assert.ok(disabled.includes(id), id)
+  for (const id of ['ui-settings-models', 'ui-settings-plugins', 'ui-permission', 'plugin-manager', 'ui-sidebar-terminal', 'terminal-controller', 'workspace-files', 'directory-picker']) assert.ok(disabled.includes(id), id)
   assert.equal(user.find((r) => r.id === 'credentials'), undefined)
+  assert.equal(user.find((r) => r.id === 'ui-settings').config.enabled, false)
   const admin = parsePatch(buildOverlay({ role: 'admin', handshakeFile: '/h', sharedCredentialsFile: '/data/shared/credentials.yaml' }))
   assert.equal(admin.find((r) => r.id === 'credentials').config.path, '/data/shared/credentials.yaml')
   assert.equal(admin.filter((r) => r.disabled === true).length, 0)
+  assert.equal(admin.find((r) => r.id === 'ui-settings'), undefined)
 })
 
 test('findRunning finds a running session anywhere in the answer', () => {

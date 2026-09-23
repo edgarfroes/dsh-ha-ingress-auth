@@ -35,6 +35,32 @@ export const DEFAULT_USER_TOOLS = Object.freeze([
  * `settings.header` slot, a public slot name, not a generated class. */
 export const GENERAL_ONLY_STYLE = 'nav:has([data-slot="settings.header"]) button:not(:first-child){display:none!important}'
 
+/** Settings → General rows non-admins do not get: Work details and Performance
+ * & usage (ui-chat) and Developer tools (ui-settings-general). The rows carry
+ * no ids; each is matched by its component's row class as a direct child of
+ * the public `settings.general.item` slot, which wraps all General rows. Those class names come from dsh's build and are
+ * stable for a pinned version; the E2E suite fails if an upgrade changes them. */
+export const USER_HIDDEN_GENERAL_ROWS = Object.freeze(['_2XZxNq_row', 'Pt1bsG_row'])
+
+/**
+ * Page script that switches the session list to "In one list" once per
+ * browser, before dsh boots. dsh keeps that view in localStorage
+ * (`dsh.workspace.view.v5`, whole-state JSON) and writes its own default on the
+ * first visit, so "only when absent" would miss existing users: a marker key
+ * records that the default was applied, and from then on the user's own
+ * choice stands.
+ * @param {string} mode dsh group-by id: 'flat' (In one list), 'workspace', 'workspace-tree'
+ */
+export function groupingDefaultScript(mode) {
+  const m = JSON.stringify(mode)
+  return `(function(){try{var F='dsh-ha.grouping-default.v1',K='dsh.workspace.view.v5';if(localStorage.getItem(F))return;var s={};try{s=JSON.parse(localStorage.getItem(K)||'{}')||{}}catch(e){}var d={groupBy:'workspace',orderBy:'updated',groupExpansion:{},sessionOrderByAccount:{},archivedFilter:'default'};for(var k in d)if(!(k in s))s[k]=d[k];s.groupBy=${m};localStorage.setItem(K,JSON.stringify(s));localStorage.setItem(F,'1')}catch(e){}})()`
+}
+
+export function hiddenRowsStyle(classes) {
+  if (classes.length === 0) return ''
+  return `${classes.map((c) => `[data-slot="settings.general.item"] > [class~="${c}"]`).join(',')}{display:none!important}`
+}
+
 /**
  * Normalise the row config. The loader passes it verbatim; there is no schema
  * dependency so the plugin needs nothing beyond the running dsh.
@@ -55,6 +81,13 @@ export function resolveConfig(raw = {}) {
     // from every registered section, so the Agent presets section (which ships
     // in the same plugin as the new-chat preset picker) is hidden by style.
     generalSettingsOnly: raw.generalSettingsOnly === undefined ? role === 'user' : raw.generalSettingsOnly === true,
+    hiddenGeneralRows: Array.isArray(raw.hiddenGeneralRows)
+      ? raw.hiddenGeneralRows.filter((c) => typeof c === 'string' && /^[\w-]+$/.test(c))
+      : role === 'user' ? [...USER_HIDDEN_GENERAL_ROWS] : [],
+    // Non-admins just chat: their session list starts as "In one list".
+    defaultGrouping: ['flat', 'workspace', 'workspace-tree'].includes(raw.defaultGrouping)
+      ? raw.defaultGrouping
+      : raw.defaultGrouping === undefined && role === 'user' ? 'flat' : undefined,
   }
 }
 
@@ -96,6 +129,20 @@ export function apply(ctx, rawConfig) {
   if (config.generalSettingsOnly) {
     ctx.on('webserver/index-inject', (table) => {
       table.push({ kind: 'style', text: GENERAL_ONLY_STYLE })
+    })
+  }
+
+  if (config.hiddenGeneralRows.length > 0) {
+    const text = hiddenRowsStyle(config.hiddenGeneralRows)
+    ctx.on('webserver/index-inject', (table) => {
+      table.push({ kind: 'style', text })
+    })
+  }
+
+  if (config.defaultGrouping) {
+    const text = groupingDefaultScript(config.defaultGrouping)
+    ctx.on('webserver/index-inject', (table) => {
+      table.push({ kind: 'script', placement: 'head', text })
     })
   }
 

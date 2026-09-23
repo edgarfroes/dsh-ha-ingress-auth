@@ -15,14 +15,17 @@ User documentation: [app/dsh_ha_ingress_auth/DOCS.md](app/dsh_ha_ingress_auth/DO
 
 ## Install (Home Assistant)
 
-In Home Assistant open **Settings → Apps → App store → ⋮ → Repositories**, add
-`https://github.com/edgarfroes/dsh-ha-ingress-auth`, install **DeepSeek
-Harness**, start it and turn on **Show in sidebar**. The app runs a prebuilt
-image (`ghcr.io/edgarfroes/dsh-ha-ingress-auth`, amd64 and aarch64).
+Add the app repository **https://github.com/edgarfroes/hassio-apps** in Home
+Assistant (**Settings → Apps → Install app → ⋮ → Repositories → Add**), install
+**DeepSeek Harness**, start it and turn on **Show in sidebar**. Step-by-step
+screenshots: [edgarfroes/hassio-apps](https://github.com/edgarfroes/hassio-apps).
+The app runs the prebuilt image `ghcr.io/edgarfroes/dsh-ha-ingress-auth`
+(amd64 and aarch64).
 
-To build it on the device from a checkout instead, remove the `image:` line
-from `app/dsh_ha_ingress_auth/config.yaml` and run `npm ci && npm run
-app:context` first: Home Assistant builds an app from its own folder only.
+To build it on the device from a checkout instead, copy
+`app/dsh_ha_ingress_auth/` into Home Assistant's `/addons` folder as a local
+app, remove its `image:` line and run `npm ci && npm run app:context` first:
+Home Assistant builds an app from its own folder only.
 
 ## Layout
 
@@ -49,7 +52,7 @@ test/unit/                node:test unit tests
 | Admin or not? | Core's `config/auth/list` over `ws://supervisor/core/websocket` (`homeassistant_api: true`). Admin = member of `system-admin`; user = `system-users`; anyone else is refused. |
 | Private chats | Each user gets their own `dsh web` (own `DSH_HOME`, working directory and Unix uid) bound to `127.0.0.1`. dsh has a single operator per process, so a process per user is the separation. |
 | Browser credentials | The gateway follows the child's launch URL (`connection.authenticatedUrl()`, written by the host plugin) and keeps the dsh cookie server-side. The browser only ever holds Home Assistant's own session. |
-| Admin-only screens | The non-admin overlay disables the rows that provide them (`disabled: true`, the mechanism dsh's own bundle uses). The Agent presets section ships in the same plugin as the preset picker, so for users it is hidden by an index `style` row. |
+| Admin-only screens | The non-admin overlay disables the rows that provide them (`disabled: true`, the mechanism dsh's own bundle uses): Models, Plugins, Permission, plugin manager, terminal, file preview, folder picker. The Agent presets section (shipped with the preset picker users keep) and the General rows Work details, Performance & usage and Developer tools (shipped with chat) are hidden for users by index `style` rows; Developer tools is also forced off in their overlay. Users' session list starts as "In one list" (an index `script` row seeds dsh's browser-local view once). |
 | Shared admin settings | dsh saves Settings into the process's profile patch. The gateway copies admin rows between admins (holding dsh's own profile writer lock) and writes them as the non-admin processes' home patch, which dsh ranks above the profile patch and refuses to override. |
 | Per-user preferences | Rows `ui-theme`, `locale`, `ui-chat`, `ui-conversation`, `ui-settings-general`, `ui-settings` stay in each user's own profile patch. |
 | API keys for users | Passed as environment to user processes (dsh's environment credential layer, read-only in the UI). Users get no shell or file tools (`ctx.tools.guard` allow-list), no terminal, and `api/file` is limited to their own folder. |
@@ -77,6 +80,9 @@ Home Assistant.
    images to ghcr.io.
 3. First release only: make the `dsh-ha-ingress-auth` package public in GitHub
    → Packages → Package settings, so Home Assistant can pull it anonymously.
+4. In [hassio-apps](https://github.com/edgarfroes/hassio-apps), set the same
+   `version:` in `dsh_ha_ingress_auth/config.yaml` and add a `CHANGELOG.md`
+   entry. Home Assistant offers the update from there.
 
 ## Versions
 

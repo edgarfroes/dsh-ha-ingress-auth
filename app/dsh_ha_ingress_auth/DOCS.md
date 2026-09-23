@@ -11,10 +11,11 @@ roles:
   Permission, API keys, custom model providers, the plugin manager and shell
   tools. What one admin configures applies to everyone, including the default
   model: when an admin picks a model in the chat, it becomes everyone's default.
-- **Users** (members of *Users*) get Settings → General only. Their Language,
-  Appearance, Font size, Conversation display and "Send behavior while busy"
-  are saved for them alone. They chat with the models the admins configured,
-  pick among the admins' agent presets, and cannot run shell or file tools.
+- **Users** (members of *Users*) get Settings → General with Language,
+  Appearance, Font size and "Send behavior while busy", each saved for them
+  alone. Their sessions are shown in one list, without workspaces. They chat
+  with the models the admins configured, pick among the admins' agent presets,
+  and cannot run shell, file or terminal tools.
 - **Read-only** Home Assistant users are refused.
 
 ## First setup

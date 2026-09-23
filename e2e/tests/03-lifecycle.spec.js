@@ -14,6 +14,8 @@ test.beforeAll(async ({ request }) => { originalUsers = await getUsers(request) 
 test.afterAll(async ({ request }) => { if (originalUsers) await setUsers(request, originalUsers) })
 
 test('a second admin gets the shared configuration and their changes reach everyone', async ({ browser }) => {
+  // First boot of a new admin, then a settings sync and a reload: slower than most.
+  test.setTimeout(240_000)
   const { context, page } = await openAs(browser, 'admin2')
   // A new admin's profile is created on first boot; the gateway then copies
   // the shared rows into it and dsh reloads them.

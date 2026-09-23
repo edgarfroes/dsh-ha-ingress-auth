@@ -1,0 +1,7 @@
+node_modules/
+test-results/
+playwright-report/
+e2e/.auth/
+app/dsh_ha_ingress_auth/plugin/
+*.log
+.DS_Store

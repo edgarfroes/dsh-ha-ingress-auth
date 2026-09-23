@@ -1,17 +1,36 @@
-# dsh-ha-ingress-auth
+<p align="center">
+  <img src="app/dsh_ha_ingress_auth/icon.png" width="96" alt="">
+</p>
 
-Home Assistant ingress as the user and role layer for
-[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh),
-shipped as a Home Assistant app.
+<h1 align="center">DeepSeek Harness for Home Assistant</h1>
 
-- One `dsh web` process per Home Assistant user: private chats, workspaces,
-  approvals and General preferences.
-- Home Assistant administrators get everything; users get Settings → General
-  only, the admins' models and presets, and no shell or file tools.
-- No dsh fork or patch. Everything goes through documented dsh extension
-  points, with one flagged exception (see [Design](#design)).
+<p align="center">
+  <a href="https://github.com/edgarfroes/dsh-ha-ingress-auth/actions/workflows/ci.yaml"><img src="https://github.com/edgarfroes/dsh-ha-ingress-auth/actions/workflows/ci.yaml/badge.svg" alt="Tests"></a>
+</p>
 
-User documentation: [app/dsh_ha_ingress_auth/DOCS.md](app/dsh_ha_ingress_auth/DOCS.md).
+Chat with AI models right from your Home Assistant sidebar, with a private
+space for everyone at home.
+
+This app puts [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+inside Home Assistant and uses the accounts you already have there. Nobody
+needs a new login.
+
+- **Everyone gets their own chats.** Each person's conversations are theirs
+  alone.
+- **Admins set things up once.** A Home Assistant administrator adds the AI
+  models and API keys, and everyone can use them.
+- **Everyone else just chats.** Other users get a simple chat list and only
+  the settings that are about them: language, theme, font size, and what
+  Enter does while a reply is still coming.
+
+This is what a family member sees:
+
+![A household member chatting with DeepSeek Harness from the Home Assistant sidebar](images/end-result.webp)
+
+To install it, add [hassio-apps](https://github.com/edgarfroes/hassio-apps) to
+Home Assistant. It has step-by-step screenshots. The rest of this page is for
+people who want to know how it works or help build it. User documentation
+lives in [DOCS.md](app/dsh_ha_ingress_auth/DOCS.md).
 
 ## Install (Home Assistant)
 

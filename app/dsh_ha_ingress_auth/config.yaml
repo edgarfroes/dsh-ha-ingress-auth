@@ -1,6 +1,10 @@
 name: DeepSeek Harness
 version: "0.1.0"
 slug: dsh_ha_ingress_auth
+url: https://github.com/edgarfroes/dsh-ha-ingress-auth
+# Prebuilt multi-arch image published by .github/workflows/release.yaml.
+# Delete this line to build the app on the device instead.
+image: ghcr.io/edgarfroes/dsh-ha-ingress-auth
 description: DeepSeek Harness with Home Assistant users, admin-only settings and private chats
 arch:
   - amd64

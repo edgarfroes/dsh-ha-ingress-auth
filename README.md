@@ -15,12 +15,14 @@ User documentation: [app/dsh_ha_ingress_auth/DOCS.md](app/dsh_ha_ingress_auth/DO
 
 ## Install (Home Assistant)
 
-Add this repository in **Settings → Apps → App store → ⋮ → Repositories**,
-install **DeepSeek Harness**, start it and turn on **Show in sidebar**.
+In Home Assistant open **Settings → Apps → App store → ⋮ → Repositories**, add
+`https://github.com/edgarfroes/dsh-ha-ingress-auth`, install **DeepSeek
+Harness**, start it and turn on **Show in sidebar**. The app runs a prebuilt
+image (`ghcr.io/edgarfroes/dsh-ha-ingress-auth`, amd64 and aarch64).
 
-Until the gateway is published to npm, build the app context from a checkout
-first (`npm ci && npm run app:context`), because Home Assistant builds an app
-from its own folder only.
+To build it on the device from a checkout instead, remove the `image:` line
+from `app/dsh_ha_ingress_auth/config.yaml` and run `npm ci && npm run
+app:context` first: Home Assistant builds an app from its own folder only.
 
 ## Layout
 
@@ -66,6 +68,15 @@ The E2E stack (`e2e/compose.yaml`) puts the real app image behind a stand-in
 for Supervisor ingress at `172.30.32.2`, with a synthetic Home Assistant user
 list and a stub OpenAI-compatible model, so it spends no tokens and needs no
 Home Assistant.
+
+## Release
+
+1. Bump `version:` in `app/dsh_ha_ingress_auth/config.yaml`.
+2. Commit, tag `v<version>` and push the tag. `.github/workflows/release.yaml`
+   builds both architectures with Home Assistant's builder and publishes the
+   images to ghcr.io.
+3. First release only: make the `dsh-ha-ingress-auth` package public in GitHub
+   → Packages → Package settings, so Home Assistant can pull it anonymously.
 
 ## Versions
 

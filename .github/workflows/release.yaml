@@ -1,0 +1,96 @@
+# Publish the app image to GitHub's container registry when a version tag is
+# pushed (v<version>, matching `version:` in the app's config.yaml).
+# Per-architecture images: ghcr.io/<owner>/<arch>-dsh-ha-ingress-auth
+# Multi-arch image (what config.yaml `image:` points at): ghcr.io/<owner>/dsh-ha-ingress-auth
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  APP_DIR: app/dsh_ha_ingress_auth
+  IMAGE_NAME: dsh-ha-ingress-auth
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Tag must match config.yaml version
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(sed -nE 's/^version: *"?([^"]+)"?$/\1/p' "$APP_DIR/config.yaml")"
+          if [[ "v${version}" != "${TAG}" ]]; then
+            echo "::error::tag ${TAG} does not match config.yaml version ${version}"
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-24.04
+          - arch: aarch64
+            os: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.2
+      # Home Assistant builds an app from its own folder; copy the gateway in.
+      - run: node scripts/app-context.js
+      - name: Build and push ${{ matrix.arch }}
+        uses: home-assistant/builder/actions/build-image@7412f0023ea9b6e58e8bb5059f1660f51376f49a # 2026.09.0
+        with:
+          arch: ${{ matrix.arch }}
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          context: ${{ env.APP_DIR }}
+          image: ghcr.io/${{ github.repository_owner }}/${{ matrix.arch }}-${{ env.IMAGE_NAME }}
+          image-tags: |
+            ${{ needs.prepare.outputs.version }}
+            latest
+          labels: |
+            io.hass.type=app
+            io.hass.name=DeepSeek Harness
+            io.hass.description=DeepSeek Harness with Home Assistant users, admin-only settings and private chats
+            io.hass.url=https://github.com/${{ github.repository }}
+          push: true
+          version: ${{ needs.prepare.outputs.version }}
+
+  manifest:
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      packages: write
+    steps:
+      - uses: home-assistant/builder/actions/publish-multi-arch-manifest@7412f0023ea9b6e58e8bb5059f1660f51376f49a # 2026.09.0
+        with:
+          architectures: '["amd64", "aarch64"]'
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          image-name: ${{ env.IMAGE_NAME }}
+          image-tags: |
+            ${{ needs.prepare.outputs.version }}
+            latest
+          registry-prefix: ghcr.io/${{ github.repository_owner }}

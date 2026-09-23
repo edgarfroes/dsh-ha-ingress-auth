@@ -1,0 +1,5 @@
+# DL3008 (pin apt package versions): Debian drops superseded package versions
+# from its mirrors, so exact apt pins break rebuilds. The base image itself is
+# pinned by digest, which fixes the Debian snapshot the packages come from.
+ignored:
+  - DL3008

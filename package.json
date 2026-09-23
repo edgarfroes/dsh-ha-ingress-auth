@@ -4,13 +4,21 @@
   "description": "Home Assistant ingress as the user and role layer for DeepSeek Harness: one dsh process per HA user, admin-only settings, per-user preferences.",
   "license": "MIT",
   "type": "module",
-  "engines": { "node": ">=22.19.0" },
-  "bin": { "dsh-ha-gateway": "src/gateway/cli.js" },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "bin": {
+    "dsh-ha-gateway": "src/gateway/cli.js"
+  },
   "exports": {
     "./host": "./src/plugin/host.js",
     "./gateway/*": "./src/gateway/*.js"
   },
-  "files": ["src", "README.md", "LICENSE"],
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "node --test \"test/unit/*.test.js\"",
     "app:context": "node scripts/app-context.js",
@@ -27,5 +35,9 @@
     "@deepseek-ai/dsh": "0.1.7-alpha.2",
     "@playwright/test": "1.63.0",
     "ws": "8.21.3"
-  }
+  },
+  "overrides": {
+    "@earendil-works/pi-ai": "0.87.1"
+  },
+  "//overrides": "pi-ai 0.86+ sends the x-opencode-session header opencode Go/Zen require; dsh 0.1.7-alpha.2 pins ^0.85.1. Drop when dsh moves up."
 }

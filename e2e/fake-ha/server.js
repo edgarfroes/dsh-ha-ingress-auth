@@ -16,6 +16,7 @@
 import { createServer, request as httpRequest } from 'node:http'
 import { connect } from 'node:net'
 import { WebSocketServer } from 'ws'
+import { createHash } from 'node:crypto'
 
 const GATEWAY = new URL(process.env.GATEWAY_URL ?? 'http://127.0.0.1:8099')
 const INGRESS_TOKEN = process.env.INGRESS_TOKEN ?? 'e2e-ingress-token'
@@ -208,6 +209,10 @@ const llm = createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname.endsWith('/chat/completions')) {
     const body = JSON.parse(await readBody(req) || '{}')
     const p = plan(body)
+    // Report the OpenCode per-conversation header (as a short digest) so tests
+    // can check it is sent, stable within a chat and different across chats.
+    const oc = req.headers['x-opencode-session']
+    if (p.text && oc) p.text += ` [opencode-session:${createHash('sha256').update(String(oc)).digest('hex').slice(0, 8)}]`
     const id = `chatcmpl-${Date.now()}`
     const base = { id, object: 'chat.completion.chunk', created: Math.floor(Date.now() / 1000), model: body.model ?? 'stub-model' }
     const usage = { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }

@@ -72,6 +72,10 @@ Home Assistant.
 - `@deepseek-ai/dsh` **0.1.7-alpha.2**, exact, via
   `app/dsh_ha_ingress_auth/runtime/package-lock.json`. 0.1.7-alpha.1 is the
   first dsh that can be served under an ingress sub-path.
+- `@earendil-works/pi-ai` **0.87.1** through npm `overrides` (dsh pins
+  `^0.85.1`). pi-ai 0.86+ sends the `x-opencode-session` header OpenCode Go and
+  Zen require; without it every opencode request fails with `MissingSessionID`.
+  Remove the override once dsh depends on pi-ai ≥ 0.86.
 - Base image `node:22.23.2-bookworm-slim`, pinned by digest.
 
 ## License

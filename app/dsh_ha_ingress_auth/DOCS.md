@@ -9,7 +9,8 @@ roles:
 - **Administrators** (members of the Home Assistant *Administrators* group)
   get all of dsh: Settings → Models, Built-in plugins, Agent presets, General →
   Permission, API keys, custom model providers, the plugin manager and shell
-  tools. What one admin configures applies to everyone.
+  tools. What one admin configures applies to everyone, including the default
+  model: when an admin picks a model in the chat, it becomes everyone's default.
 - **Users** (members of *Users*) get Settings → General only. Their Language,
   Appearance, Font size, Conversation display and "Send behavior while busy"
   are saved for them alone. They chat with the models the admins configured,

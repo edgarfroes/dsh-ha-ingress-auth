@@ -96,7 +96,12 @@ const server = createServer(async (req, res) => {
   if (url.pathname === INGRESS_PREFIX || url.pathname.startsWith(`${INGRESS_PREFIX}/`)) {
     const user = cookieUser(req)
     if (!user) { res.writeHead(401); res.end('401: Unauthorized'); return }
-    const path = (req.url ?? '/').slice(INGRESS_PREFIX.length) || '/'
+    // Like Supervisor and Core, forward the query as parsed parameters
+    // (aiohttp `params=request.query`). yarl keeps the characters but writes
+    // every value-less parameter as `key=`, e.g. `??@a,b&rev=1` → `??@a,b=&rev=1`.
+    const raw = (req.url ?? '/').slice(INGRESS_PREFIX.length) || '/'
+    const q = raw.indexOf('?')
+    const path = q < 0 ? raw : `${raw.slice(0, q)}?${raw.slice(q + 1).split('&').map((p) => (p.includes('=') ? p : `${p}=`)).join('&')}`
     const upstream = httpRequest({ host: GATEWAY.hostname, port: GATEWAY.port, method: req.method, path, headers: ingressHeaders(req, user) }, (up) => {
       res.writeHead(up.statusCode ?? 502, up.headers)
       up.pipe(res)

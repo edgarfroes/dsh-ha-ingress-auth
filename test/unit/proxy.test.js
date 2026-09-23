@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { childRequestHeaders, userRequestDenial, settingsWriteDenial } from '../../src/gateway/proxy.js'
+import { childRequestHeaders, userRequestDenial, settingsWriteDenial, restoreComboQuery } from '../../src/gateway/proxy.js'
 import { ingressIdentity } from '../../src/gateway/server.js'
 import { DEFAULT_PREFERENCE_ROWS } from '../../src/gateway/patches.js'
 
@@ -42,4 +42,16 @@ test('ingress identity: trusted peer and a user id are both required', () => {
   assert.equal(ingressIdentity(req('172.30.32.9', { 'x-remote-user-id': 'abc' }), ['172.30.32.2']).status, 403)
   assert.equal(ingressIdentity(req('172.30.32.2', {}), ['172.30.32.2']).status, 401)
   assert.equal(ingressIdentity(req('172.30.32.2', { 'x-remote-user-id': '../x' }), ['172.30.32.2']).status, 401)
+})
+
+test('combined plugin URLs survive Home Assistant query re-encoding', () => {
+  const raw = '/plugins/??@deepseek-ai/a/client.js,@deepseek-ai/b/client.js&rev=2ee1'
+  assert.equal(restoreComboQuery(raw), raw)
+  // aiohttp/yarl form (Supervisor and Core): ',' encoded, '=' appended.
+  assert.equal(restoreComboQuery('/plugins/??@deepseek-ai/a/client.js%2C@deepseek-ai/b/client.js=&rev=2ee1'), raw)
+  // application/x-www-form-urlencoded form.
+  const form = `/plugins/?${new URLSearchParams([['?@deepseek-ai/a/client.js,@deepseek-ai/b/client.js', ''], ['rev', '2ee1']])}`
+  assert.equal(restoreComboQuery(form), raw)
+  assert.equal(restoreComboQuery('/api/file?path=%2Fdata%2Fx'), '/api/file?path=%2Fdata%2Fx')
+  assert.equal(restoreComboQuery('/'), '/')
 })

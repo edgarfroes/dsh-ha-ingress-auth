@@ -53,7 +53,7 @@ export async function rpc(page, method, args = {}) {
     const res = await fetch(`api/${method}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type: 'client-request', rpcId: crypto.randomUUID(), method, payload: { args } }),
+      body: JSON.stringify({ type: 'client-request', rpcId: `t-${Date.now()}-${Math.random().toString(36).slice(2)}`, method, payload: { args } }),
     })
     let body
     try { body = await res.json() } catch { body = undefined }
@@ -120,7 +120,7 @@ export async function selectStubModel(page) {
 
 /** Type a message in the composer and send it. */
 export async function sendMessage(page, text) {
-  const box = page.getByRole('textbox', { name: /^Describe what you want to build/ })
+  const box = page.getByRole('textbox', { name: /^(Describe what you want to build|Message or run a task)/ })
   await box.fill(text)
   await page.getByRole('button', { name: 'Send message' }).click()
 }

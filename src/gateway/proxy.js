@@ -76,6 +76,27 @@ export function settingsWriteDenial(body, preferenceRows) {
 }
 
 /**
+ * Undo Home Assistant ingress's query re-encoding for dsh's combined plugin
+ * URLs. dsh loads client bundles as `plugins/??@a/client.js,@b/client.js&rev=…`
+ * (a query that itself starts with `?`). Supervisor and Core forward HTTP
+ * queries as parsed parameters (aiohttp `params=request.query`), which turns
+ * that first, value-less parameter into `?@a/client.js%2C@b/client.js=` or a
+ * fully percent-encoded form; dsh then answers 404. Other queries are left alone.
+ * @param {string} url request path + query
+ */
+export function restoreComboQuery(url) {
+  const i = url.indexOf('?')
+  if (i < 0) return url
+  const parts = url.slice(i + 1).split('&')
+  let first
+  try { first = decodeURIComponent(parts[0].replace(/\+/g, ' ')) } catch { return url }
+  if (!first.startsWith('?')) return url
+  if (first.endsWith('=')) first = first.slice(0, -1)
+  parts[0] = first
+  return `${url.slice(0, i)}?${parts.join('&')}`
+}
+
+/**
  * Decide whether a non-admin request is allowed.
  * @param {string} rawUrl request URL (path + query) as the child would see it
  * @param {string} userRoot the user's data directory
@@ -110,7 +131,7 @@ export function forwardHttp(req, res, child, hooks = {}, body = undefined) {
     host: '127.0.0.1',
     port: child.port,
     method: req.method,
-    path: req.url,
+    path: restoreComboQuery(req.url ?? '/'),
     headers: childRequestHeaders(req.headers, child),
   }, (up) => {
     /** @type {Record<string, string | string[]>} */

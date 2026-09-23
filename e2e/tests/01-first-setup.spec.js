@@ -36,7 +36,8 @@ test('admin adds a custom model provider in Settings → Models', async ({ brows
   await form.getByRole('button', { name: 'Create provider' }).click()
   // Provider config becomes a shared row; its key goes to the shared credentials.
   await expect.poll(() => readData('shared/admin-rows.yml') ?? '', { timeout: 20000 }).toContain('stub-model')
-  expect(readData('shared/admin/credentials.yaml') ?? '').toMatch(/STUB/i)
+  // The key is saved separately from the provider row, possibly a moment later.
+  await expect.poll(() => readData('shared/admin/credentials.yaml') ?? '', { timeout: 20000 }).toMatch(/STUB/i)
   await context.close()
 })
 

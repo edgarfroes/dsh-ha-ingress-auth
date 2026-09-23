@@ -68,6 +68,16 @@ test('shell and file tools are refused for non-admins and allowed for admins', a
   await o.context.close()
 })
 
+test("an admin's shell cannot read another user's chats on disk", async ({ browser }) => {
+  test.skip(!process.env.E2E_APP_EXEC, 'uid isolation needs the container run')
+  const o = await openAs(browser, 'owner')
+  await dismissFirstRun(o.page)
+  await selectStubModel(o.page)
+  await sendMessage(o.page, `TOOL:bash {"command":"ls /data/users/${USERS.alice}/home 2>&1 | head -1; cat /data/shared/admin-rows.yml 2>&1 | head -1","description":"probe"}`)
+  await expect(o.page.getByText(/tool result: .*Permission denied/).first()).toBeVisible({ timeout: 60_000 })
+  await o.context.close()
+})
+
 test('chats are visible only to the user who created them', async ({ browser }) => {
   const a = await openAs(browser, 'alice')
   await dismissFirstRun(a.page)

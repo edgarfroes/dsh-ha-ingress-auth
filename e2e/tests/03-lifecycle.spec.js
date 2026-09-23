@@ -3,7 +3,7 @@
 import { test, expect } from '@playwright/test'
 import {
   openAs, dismissFirstRun, openSettings, rpc, readData, selectStubModel, sendMessage,
-  setUsers, getUsers, restartApp, waitForPanel, gatewayLog, USERS, INGRESS,
+  setUsers, getUsers, restartApp, waitForPanel, gatewayLog, listData, USERS, INGRESS,
 } from './helpers.js'
 
 test.describe.configure({ mode: 'serial' })
@@ -15,6 +15,10 @@ test.afterAll(async ({ request }) => { if (originalUsers) await setUsers(request
 
 test('a second admin gets the shared configuration and their changes reach everyone', async ({ browser }) => {
   const { context, page } = await openAs(browser, 'admin2')
+  // A new admin's profile is created on first boot; the gateway then copies
+  // the shared rows into it and dsh reloads them.
+  await expect.poll(() => readData(`users/${USERS.admin2}/home/profiles/web/cordis.patch.yml`) ?? '', { timeout: 30_000 }).toContain('stub-model')
+  await page.reload()
   await dismissFirstRun(page)
   await selectStubModel(page)
   // admin2 renames the provider; the change must reach the store and alice.
@@ -101,8 +105,7 @@ test('a deleted HA user is archived, not deleted', async ({ browser, request }) 
   // …then is removed from Home Assistant.
   await setUsers(request, users)
   await expect.poll(() => readData(`users/${temp.id}/home/profiles/web/cordis.patch.yml`), { timeout: 60_000 }).toBeUndefined()
-  const archived = await import('node:fs').then((fs) => fs.readdirSync(`${process.env.E2E_DATA_DIR}/archive`))
-  expect(archived.some((d) => d.startsWith(temp.id))).toBe(true)
+  expect(listData('archive').some((d) => d.startsWith(temp.id))).toBe(true)
 })
 
 test('the sidebar panel works inside an iframe, like Home Assistant', async ({ browser }) => {

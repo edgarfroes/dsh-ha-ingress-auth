@@ -1,6 +1,6 @@
 // Shared helpers for the fake-ingress E2E suite.
 import { expect } from '@playwright/test'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { execSync } from 'node:child_process'
 
@@ -27,10 +27,19 @@ export async function openAs(browser, username) {
 
 /** Dismiss the first-run dialogs if they are shown. */
 export async function dismissFirstRun(page) {
+  await expect(page.getByText('New Session').first()).toBeVisible({ timeout: 60_000 })
   const cont = page.getByRole('button', { name: 'Continue', exact: true })
-  if (await cont.isVisible({ timeout: 8000 }).catch(() => false)) await cont.click()
   const later = page.getByRole('button', { name: 'Configure later' })
-  if (await later.isVisible({ timeout: 3000 }).catch(() => false)) await later.click()
+  // The dialogs can appear a moment after the shell (settings load, or a
+  // reload after the gateway syncs shared settings). Settle for 3 quiet seconds.
+  let quiet = 0
+  const deadline = Date.now() + 30_000
+  while (quiet < 6 && Date.now() < deadline) {
+    if (await cont.isVisible().catch(() => false)) { await cont.click().catch(() => {}); quiet = 0 }
+    else if (await later.isVisible().catch(() => false)) { await later.click().catch(() => {}); quiet = 0 }
+    else quiet++
+    await page.waitForTimeout(500)
+  }
 }
 
 export async function openSettings(page) {
@@ -52,10 +61,25 @@ export async function rpc(page, method, args = {}) {
   }, { method, args })
 }
 
+/** Read a file under the app's /data (a local directory, or inside the app
+ * container through E2E_APP_EXEC). Undefined when it does not exist. */
 export function readData(rel) {
+  if (process.env.E2E_APP_EXEC) {
+    try { return execSync(`${process.env.E2E_APP_EXEC} cat '/data/${rel}'`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }) } catch { return undefined }
+  }
   if (!DATA_DIR) return undefined
   const p = join(DATA_DIR, rel)
   return existsSync(p) ? readFileSync(p, 'utf8') : undefined
+}
+
+/** List a directory under the app's /data. */
+export function listData(rel) {
+  if (process.env.E2E_APP_EXEC) {
+    try { return execSync(`${process.env.E2E_APP_EXEC} ls -1 '/data/${rel}'`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\n').filter(Boolean) } catch { return [] }
+  }
+  if (!DATA_DIR) return []
+  const p = join(DATA_DIR, rel)
+  return existsSync(p) ? readdirSync(p) : []
 }
 
 export async function setUsers(request, users) {

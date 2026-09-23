@@ -2,7 +2,7 @@
 
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:net'
-import { existsSync, mkdirSync, readFileSync, rmSync, chownSync, chmodSync, renameSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, chownSync, chmodSync, renameSync, statSync, lstatSync, lchownSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { writeFileAtomic } from './patches.js'
 
@@ -29,6 +29,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 /** Short, still unambiguous label for logs (HA ids are 32 hex chars). */
 export function tagOf(key) {
   return key.length > 12 ? `${key.slice(0, 6)}…${key.slice(-4)}` : key
+}
+
+/** Recursively change the owner of a directory tree (no symlink following).
+ * Files the gateway itself manages there (the home patch) stay root-owned. */
+export function chownTree(root, uid) {
+  const stack = [root]
+  while (stack.length) {
+    const path = stack.pop()
+    const st = lstatSync(path)
+    if (st.uid !== 0 || path === root || st.isDirectory()) lchownSync(path, uid, uid)
+    if (st.isDirectory()) for (const name of readdirSync(path)) stack.push(join(path, name))
+  }
 }
 
 /** Redact launch tokens from child output before it reaches the app log. */
@@ -144,6 +156,12 @@ export class ChildManager {
     for (const dir of [paths.root, paths.home, paths.workspace]) mkdirSync(dir, { recursive: true })
     if (isolate && uids) {
       child.uid = uids.uidFor(child.key, child.role)
+      // A role change moves the user to another uid (admins share one); hand
+      // their whole folder over before the process starts.
+      if (statSync(paths.root).uid !== child.uid) {
+        this.opts.log(`[gateway] giving the data of ${tagOf(child.key)} to uid ${child.uid}`)
+        chownTree(paths.root, child.uid)
+      }
       for (const dir of [paths.root, paths.home, paths.workspace]) {
         chownSync(dir, child.uid, child.uid)
         chmodSync(dir, 0o700)

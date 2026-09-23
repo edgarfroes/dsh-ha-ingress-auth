@@ -10,8 +10,12 @@
 //     refuses Settings writes it would override, so non-admins cannot change
 //     shared configuration, and HMR applies store changes live.
 
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, rmSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import yaml from 'js-yaml'
+// The same writer lock dsh's config editor holds while it rewrites a profile
+// patch, so the gateway and dsh never overwrite each other's edits.
+import { withFileLock } from '@deepseek-ai/dsh-atomic-write'
 import {
   DEFAULT_PREFERENCE_ROWS, HOME_PATCH_HEADER, PROFILE_PATCH_HEADER,
   applyAdminChange, dumpPatch, mergeForAdmin, readPatchFile, splitRows, stableStringify, writeFileAtomic,
@@ -53,11 +57,25 @@ export class SharedConfig {
   }
 
   /** Before an admin process starts. @param {import('./children.js').Child} child */
-  prepareAdmin(child) {
-    const { profilePatch } = this.layout.user(child.key)
+  async prepareAdmin(child) {
+    // A promoted user's managed home patch would outrank (and refuse) their
+    // admin edits; admins get the shared rows in their profile patch instead.
+    rmSync(this.layout.user(child.key).homePatch, { force: true })
     // A brand-new admin has no profile yet; dsh creates it on first boot and
     // the next sync tick fills in the shared rows.
-    if (existsSync(profilePatch)) this.writeAdminPatch(child, readPatchFile(profilePatch))
+    await this.withProfileLock(child, (own) => { this.writeAdminPatch(child, own) })
+  }
+
+  /**
+   * Run `fn` with the admin's current profile rows while holding dsh's profile
+   * writer lock. Skipped when the profile does not exist yet.
+   * @param {import('./children.js').Child} child @param {(own: any[]) => void} fn
+   */
+  async withProfileLock(child, fn) {
+    const { profilePatch } = this.layout.user(child.key)
+    if (!existsSync(profilePatch)) return
+    const manifest = join(dirname(profilePatch), 'package.json')
+    await withFileLock(manifest, async () => { fn(readPatchFile(profilePatch)) }, { waitMs: 5000 })
   }
 
   /** @param {string} key */
@@ -76,38 +94,43 @@ export class SharedConfig {
     this.snapshots.set(child.key, this.store)
   }
 
-  /** One sync pass. Called on a short interval. */
-  tick() {
+  /** One sync pass. Called on a short interval; never runs twice at once. */
+  async tick() {
+    if (this.ticking) return
+    this.ticking = true
+    try { await this.syncOnce() } finally { this.ticking = false }
+  }
+
+  async syncOnce() {
     const children = [...this.opts.children()]
     let changed = false
     for (const child of children) {
       if (child.role !== 'admin' || !child.cookie) continue
-      const { profilePatch } = this.layout.user(child.key)
-      if (!existsSync(profilePatch)) continue
-      let own
-      try { own = readPatchFile(profilePatch) } catch (error) {
-        this.opts.log(`[gateway] cannot read profile patch of ${tagOf(child.key)}: ${error.message}`)
-        continue
-      }
-      const current = splitRows(own, this.preferenceRows).shared
-      const before = this.snapshots.get(child.key)
-      if (before === undefined) {
-        if (this.store.length === 0 && current.length > 0) {
-          // First admin with existing configuration seeds the store.
-          this.store = current
-          changed = true
+      try {
+        await this.withProfileLock(child, (own) => {
+          const current = splitRows(own, this.preferenceRows).shared
+          const before = this.snapshots.get(child.key)
+          if (before === undefined) {
+            if (this.store.length === 0 && current.length > 0) {
+              // First admin with existing configuration seeds the store.
+              this.store = current
+              changed = true
+              this.snapshots.set(child.key, current)
+            } else {
+              this.writeAdminPatch(child, own)
+            }
+            return
+          }
+          const result = applyAdminChange(this.store, before, current)
           this.snapshots.set(child.key, current)
-        } else {
-          this.writeAdminPatch(child, own)
-        }
-        continue
-      }
-      const result = applyAdminChange(this.store, before, current)
-      this.snapshots.set(child.key, current)
-      if (result.changed) {
-        this.store = result.rows
-        changed = true
-        this.opts.log(`[gateway] shared configuration updated by an admin (${tagOf(child.key)})`)
+          if (result.changed) {
+            this.store = result.rows
+            changed = true
+            this.opts.log(`[gateway] shared configuration updated by an admin (${tagOf(child.key)})`)
+          }
+        })
+      } catch (error) {
+        this.opts.log(`[gateway] cannot sync the profile of ${tagOf(child.key)}: ${error.message}`)
       }
     }
     if (changed) {
@@ -116,8 +139,11 @@ export class SharedConfig {
         if (!child.cookie) continue
         if (child.role === 'user') this.writeHomePatch(child.key)
         else {
-          const { profilePatch } = this.layout.user(child.key)
-          if (existsSync(profilePatch)) this.writeAdminPatch(child, readPatchFile(profilePatch))
+          try {
+            await this.withProfileLock(child, (own) => { this.writeAdminPatch(child, own) })
+          } catch (error) {
+            this.opts.log(`[gateway] cannot update the profile of ${tagOf(child.key)}: ${error.message}`)
+          }
         }
       }
     }

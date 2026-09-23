@@ -1,7 +1,7 @@
 // Where everything lives under the app's data directory (`/data` in the
 // Home Assistant app, included in HA backups).
 //
-//   shared/credentials.yaml   API keys and grants, admin children only (0600)
+//   shared/admin/credentials.yaml  API keys and grants; the admin uid owns shared/admin (0700)
 //   shared/admin-rows.yml     shared configuration rows written by admins
 //   users/<id>/home           DSH_HOME of that user's dsh process
 //   users/<id>/workspace      its working directory
@@ -18,7 +18,8 @@ export class Layout {
     this.usersRoot = join(dataRoot, 'users')
     this.runtimeRoot = join(dataRoot, 'runtime')
     this.archiveRoot = join(dataRoot, 'archive')
-    this.sharedCredentials = join(this.sharedRoot, 'credentials.yaml')
+    this.adminRoot = join(this.sharedRoot, 'admin')
+    this.sharedCredentials = join(this.adminRoot, 'credentials.yaml')
     this.sharedRows = join(this.sharedRoot, 'admin-rows.yml')
     this.uids = join(this.runtimeRoot, 'uids.json')
   }

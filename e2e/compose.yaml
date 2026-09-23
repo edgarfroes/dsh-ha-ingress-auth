@@ -1,0 +1,49 @@
+# Fake-ingress E2E: the real app image behind a stand-in for Supervisor
+# ingress, on a network laid out like Home Assistant's `hassio` network.
+# Everything here is synthetic; nothing is read from the host environment.
+name: dsh-ha-e2e
+
+networks:
+  hassio:
+    ipam:
+      config:
+        - subnet: 172.30.32.0/23
+
+volumes:
+  app-data: {}
+
+services:
+  fake-ha:
+    build: ./fake-ha
+    environment:
+      GATEWAY_URL: http://172.30.32.10:8099
+      CORE_TOKEN: e2e-supervisor-token
+    networks:
+      hassio:
+        ipv4_address: 172.30.32.2 # Supervisor's ingress address
+    ports:
+      - "127.0.0.1:18080:8080"
+
+  app:
+    build:
+      context: ../app/dsh_ha_ingress_auth
+      args:
+        BUILD_VERSION: e2e
+    environment:
+      SUPERVISOR_TOKEN: e2e-supervisor-token
+      DSH_HA_CORE_WS: ws://172.30.32.2:8080/core/websocket
+      # Short timers so idle stop and user archiving run within the suite.
+      DSH_HA_IDLE_MINUTES: "0.3"
+      DSH_HA_CULL_INTERVAL_MS: "5000"
+      DSH_HA_ARCHIVE_INTERVAL_MS: "5000"
+    networks:
+      hassio:
+        ipv4_address: 172.30.32.10
+    # Published only so the suite can prove that a connection which does not
+    # come from the ingress address is refused. The real app publishes nothing.
+    ports:
+      - "127.0.0.1:18099:8099"
+    volumes:
+      - app-data:/data
+    depends_on:
+      - fake-ha

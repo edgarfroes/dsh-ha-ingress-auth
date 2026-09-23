@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // dsh-ha-gateway: entry point of the Home Assistant app.
 
-import { existsSync, readFileSync, mkdirSync, chmodSync } from 'node:fs'
+import { existsSync, readFileSync, mkdirSync, chmodSync, chownSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -62,7 +62,14 @@ const token = process.env.SUPERVISOR_TOKEN
 for (const dir of [layout.dataRoot, layout.sharedRoot, layout.usersRoot, layout.runtimeRoot]) mkdirSync(dir, { recursive: true })
 for (const dir of [layout.usersRoot, layout.runtimeRoot]) chmodSync(dir, 0o755)
 mkdirSync(join(layout.runtimeRoot, 'overlays'), { recursive: true, mode: 0o755 })
-if (isolate) chmodSync(layout.sharedRoot, 0o711)
+mkdirSync(layout.adminRoot, { recursive: true })
+if (isolate) {
+  // Admin processes run as one uid and keep the shared credentials file here;
+  // non-admin uids cannot enter it.
+  chmodSync(layout.sharedRoot, 0o711)
+  chownSync(layout.adminRoot, Number(values['admin-uid']), Number(values['admin-uid']))
+  chmodSync(layout.adminRoot, 0o700)
+}
 
 if (!token) log('[gateway] SUPERVISOR_TOKEN is not set: every user will be refused until it is (homeassistant_api: true)')
 
@@ -124,7 +131,7 @@ server.listen(Number(values.port), values.host, () => {
 })
 
 const timers = [
-  setInterval(() => { try { shared.tick() } catch (error) { log(`[gateway] sync failed: ${error.message}`) } }, 2000),
+  setInterval(() => { shared.tick().catch((error) => log(`[gateway] sync failed: ${error.message}`)) }, 2000),
   setInterval(() => {
     children.cull({ idleMs: idleMinutes * 60000, isBusy }).catch((error) => log(`[gateway] cull failed: ${error.message}`))
   }, cullIntervalMs),

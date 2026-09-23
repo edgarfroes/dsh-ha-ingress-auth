@@ -1,0 +1,7 @@
+configuration:
+  idle_timeout_minutes:
+    name: Idle timeout for non-admins (minutes)
+    description: >-
+      Stop a non-admin user's DeepSeek Harness process after this many minutes
+      with no open browser and no reply running. 0 keeps it running. Admin
+      processes are never stopped, so their scheduled work keeps running.

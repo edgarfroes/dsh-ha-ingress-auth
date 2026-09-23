@@ -13,7 +13,7 @@ test('first admin sees onboarding and can store an API key for everyone', async 
   await dialog.getByRole('button', { name: 'Save and continue' }).click()
   await expect(dialog).toBeHidden()
   // The key lands in the shared (admin) credentials file, not in the user's own.
-  await expect.poll(() => readData('shared/credentials.yaml') ?? '').toContain('DEEPSEEK_API_KEY')
+  await expect.poll(() => readData('shared/admin/credentials.yaml') ?? '').toContain('DEEPSEEK_API_KEY')
   expect(readData('users/a0000000000000000000000000000001/home/.credentials.yaml') ?? '').not.toContain('DEEPSEEK_API_KEY')
   await context.close()
 })
@@ -36,7 +36,7 @@ test('admin adds a custom model provider in Settings → Models', async ({ brows
   await form.getByRole('button', { name: 'Create provider' }).click()
   // Provider config becomes a shared row; its key goes to the shared credentials.
   await expect.poll(() => readData('shared/admin-rows.yml') ?? '', { timeout: 20000 }).toContain('stub-model')
-  expect(readData('shared/credentials.yaml') ?? '').toMatch(/STUB/i)
+  expect(readData('shared/admin/credentials.yaml') ?? '').toMatch(/STUB/i)
   await context.close()
 })
 

@@ -100,3 +100,10 @@ export async function sendMessage(page, text) {
   await box.fill(text)
   await page.getByRole('button', { name: 'Send message' }).click()
 }
+
+/** The gateway's log so far (a file locally, `docker compose logs` in the container setup). */
+export function gatewayLog() {
+  if (process.env.E2E_GATEWAY_LOG_CMD) return execSync(process.env.E2E_GATEWAY_LOG_CMD, { encoding: 'utf8', maxBuffer: 64 << 20 })
+  if (process.env.E2E_GATEWAY_LOG) return readFileSync(process.env.E2E_GATEWAY_LOG, 'utf8')
+  return ''
+}

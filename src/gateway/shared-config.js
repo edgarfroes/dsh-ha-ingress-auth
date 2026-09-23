@@ -16,6 +16,7 @@ import {
   DEFAULT_PREFERENCE_ROWS, HOME_PATCH_HEADER, PROFILE_PATCH_HEADER,
   applyAdminChange, dumpPatch, mergeForAdmin, readPatchFile, splitRows, stableStringify, writeFileAtomic,
 } from './patches.js'
+import { tagOf } from './children.js'
 
 export class SharedConfig {
   /**
@@ -85,7 +86,7 @@ export class SharedConfig {
       if (!existsSync(profilePatch)) continue
       let own
       try { own = readPatchFile(profilePatch) } catch (error) {
-        this.opts.log(`[gateway] cannot read profile patch of ${child.key.slice(0, 8)}: ${error.message}`)
+        this.opts.log(`[gateway] cannot read profile patch of ${tagOf(child.key)}: ${error.message}`)
         continue
       }
       const current = splitRows(own, this.preferenceRows).shared
@@ -106,7 +107,7 @@ export class SharedConfig {
       if (result.changed) {
         this.store = result.rows
         changed = true
-        this.opts.log(`[gateway] shared configuration updated by an admin (${child.key.slice(0, 8)})`)
+        this.opts.log(`[gateway] shared configuration updated by an admin (${tagOf(child.key)})`)
       }
     }
     if (changed) {

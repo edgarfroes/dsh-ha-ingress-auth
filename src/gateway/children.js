@@ -26,6 +26,11 @@ export function freePort() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+/** Short, still unambiguous label for logs (HA ids are 32 hex chars). */
+export function tagOf(key) {
+  return key.length > 12 ? `${key.slice(0, 6)}…${key.slice(-4)}` : key
+}
+
 /** Redact launch tokens from child output before it reaches the app log. */
 export function redact(line) {
   return line.replace(/([?&]token=)[^\s&"']+/g, '$1<redacted>')
@@ -85,6 +90,8 @@ export class ChildManager {
     this.opts = opts
     /** @type {Map<string, Child>} */
     this.children = new Map()
+    /** @type {Map<string, Promise<unknown>>} */
+    this.locks = new Map()
     this.now = opts.now ?? Date.now
   }
 
@@ -92,14 +99,28 @@ export class ChildManager {
   get(userId) { return this.children.get(userKey(userId)) }
 
   /**
-   * Running child for a user, started or restarted as needed.
+   * Running child for a user, started or restarted as needed. Calls for the
+   * same user are serialized, so a burst of requests during a role change can
+   * never start two processes for one user.
    * @param {string} userId @param {'admin'|'user'} role @returns {Promise<Child>}
    */
   async ensure(userId, role) {
     const key = userKey(userId)
+    const previous = this.locks.get(key) ?? Promise.resolve()
+    const run = previous.catch(() => {}).then(() => this.ensureLocked(key, userId, role))
+    const tail = run.catch(() => {})
+    this.locks.set(key, tail)
+    tail.then(() => { if (this.locks.get(key) === tail) this.locks.delete(key) })
+    const child = await run
+    child.lastActivity = this.now()
+    return child
+  }
+
+  /** @param {string} key @param {string} userId @param {'admin'|'user'} role */
+  async ensureLocked(key, userId, role) {
     let child = this.children.get(key)
     if (child && child.role !== role) {
-      this.opts.log(`[gateway] role of ${key} changed ${child.role} -> ${role}; restarting its process`)
+      this.opts.log(`[gateway] role of ${tagOf(key)} changed ${child.role} -> ${role}; restarting its process`)
       await this.stop(key)
       child = undefined
     }
@@ -108,12 +129,11 @@ export class ChildManager {
       this.children.set(key, child)
       const current = child
       child.ready = this.start(child).catch(async (error) => {
-        this.opts.log(`[gateway] start of ${key} failed: ${error instanceof Error ? error.message : String(error)}`)
+        this.opts.log(`[gateway] start of ${tagOf(key)} failed: ${error instanceof Error ? error.message : String(error)}`)
         await this.stop(key, current)
         throw error
       })
     }
-    child.lastActivity = this.now()
     return /** @type {Promise<Child>} */ (child.ready)
   }
 
@@ -145,7 +165,7 @@ export class ChildManager {
     })
     child.proc = proc
     child.exited = new Promise((resolve) => proc.once('exit', () => resolve()))
-    const tag = `[dsh:${child.key.slice(0, 8)}:${child.role}]`
+    const tag = `[dsh:${tagOf(child.key)}:${child.role}]`
     for (const stream of [proc.stdout, proc.stderr]) {
       let buf = ''
       stream.setEncoding('utf8')
@@ -170,6 +190,8 @@ export class ChildManager {
       if (this.now() > deadline) throw new Error('dsh did not become ready in time')
       if (existsSync(paths.handshake)) {
         try { handshake = JSON.parse(readFileSync(paths.handshake, 'utf8')) } catch { /* partial write */ }
+        // Only this process's own handshake counts.
+        if (handshake && handshake.port !== child.port) handshake = undefined
       }
       if (!handshake) await sleep(200)
     }
@@ -219,7 +241,7 @@ export class ChildManager {
       const due = (idleMs > 0 && quiet >= idleMs) || (child.restartWhenIdle && quiet >= restartQuietMs)
       if (!due) continue
       if (isBusy && await isBusy(child)) continue
-      this.opts.log(`[gateway] stopping idle process of ${child.key.slice(0, 8)}${child.restartWhenIdle ? ' (settings changed)' : ''}`)
+      this.opts.log(`[gateway] stopping idle process of ${tagOf(child.key)}${child.restartWhenIdle ? ' (settings changed)' : ''}`)
       await this.stop(child.key, child)
     }
   }

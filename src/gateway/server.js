@@ -4,7 +4,7 @@ import { createServer } from 'node:http'
 import { readdirSync, existsSync } from 'node:fs'
 import { forwardHttp, forwardUpgrade, userRequestDenial, SETTINGS_WRITE_PATH, settingsWriteDenial, readSmallBody } from './proxy.js'
 import { DEFAULT_PREFERENCE_ROWS } from './patches.js'
-import { archiveUser } from './children.js'
+import { archiveUser, tagOf } from './children.js'
 
 /** `::ffff:172.30.32.2` → `172.30.32.2` */
 export function normalizeAddress(address) {
@@ -151,7 +151,7 @@ export async function archiveDeletedUsers({ directory, children, layout, log }) 
     const to = archiveUser(layout, key)
     if (to) {
       archived.push(to)
-      log(`[gateway] Home Assistant user ${key.slice(0, 8)} no longer exists; archived their data to ${to}`)
+      log(`[gateway] Home Assistant user ${tagOf(key)} no longer exists; archived their data to ${to}`)
     }
   }
   return archived

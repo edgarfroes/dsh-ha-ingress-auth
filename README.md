@@ -22,6 +22,8 @@ needs a new login.
 - **Everyone else just chats.** Other users get a simple chat list and only
   the settings that are about them: language, theme, font size, and what
   Enter does while a reply is still coming.
+- **English, Chinese or Portuguese.** Each person picks their language;
+  Português (Brasil) is included.
 
 This is what a family member sees:
 
@@ -74,6 +76,7 @@ test/unit/                node:test unit tests
 | Admin-only screens | The non-admin overlay disables the rows that provide them (`disabled: true`, the mechanism dsh's own bundle uses): Models, Plugins, Permission, plugin manager, terminal, file preview, folder picker. The Agent presets section (shipped with the preset picker users keep) and the General rows Work details, Performance & usage and Developer tools (shipped with chat) are hidden for users by index `style` rows; Developer tools is also forced off in their overlay. Users' session list starts as "In one list" (an index `script` row seeds dsh's browser-local view once). |
 | Shared admin settings | dsh saves Settings into the process's profile patch. The gateway copies admin rows between admins (holding dsh's own profile writer lock) and writes them as the non-admin processes' home patch, which dsh ranks above the profile patch and refuses to override. |
 | Per-user preferences | Rows `ui-theme`, `locale`, `ui-chat`, `ui-conversation`, `ui-settings-general`, `ui-settings` stay in each user's own profile patch. |
+| Languages for everyone | Language packs are client plugins. One installed from dsh's Plugins page lands in that admin's own profile only, so the app bundles them instead: [dsh-locale-pt-br](https://github.com/edgarfroes/dsh-locale-pt-br) is in the image's runtime lockfile, and every child's overlay loads it by absolute path (`LANGUAGE_PACKS` in `src/gateway/overlays.js`). The chosen language stays per user (`locale`). |
 | API keys for users | Passed as environment to user processes (dsh's environment credential layer, read-only in the UI). Users get no shell or file tools (`ctx.tools.guard` allow-list), no terminal, and `api/file` is limited to their own folder. |
 | Settings behind a proxy | dsh disables Settings persistence on non-loopback pages. The host plugin sets `__DSH_TRANSPORT__.ownsHost` through an index `global` row. **This field is documented as shell-only**: it is the one deviation, tracked upstream in deepseek-harness discussion #5829. |
 | HA ingress query re-encoding | Supervisor/Core forward queries as parsed parameters; dsh's combined plugin URLs (`plugins/??a,b`) come back as `??a,b=`. The gateway restores them. |

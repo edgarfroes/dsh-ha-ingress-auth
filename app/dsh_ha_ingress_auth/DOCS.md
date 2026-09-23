@@ -17,6 +17,11 @@ roles:
   with the models the admins configured, pick among the admins' agent presets,
   and cannot run shell, file or terminal tools.
 - **Read-only** Home Assistant users are refused.
+- **Languages**: English, Chinese and **Português (Brasil)** for everyone. Each
+  person picks theirs in Settings → General → Language; a browser set to
+  Portuguese gets it automatically. The Portuguese pack is
+  [dsh-locale-pt-br](https://github.com/edgarfroes/dsh-locale-pt-br), bundled
+  with the app.
 
 ## First setup
 

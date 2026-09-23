@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { resolveConfig, makeUserToolGuard, DEFAULT_USER_TOOLS, apply } from '../../src/plugin/host.js'
-import { buildOverlay, parseMcpServers, buildMcpRows } from '../../src/gateway/overlays.js'
+import { buildOverlay, parseMcpServers, buildMcpRows, LANGUAGE_PACKS, languagePackRows, DEFAULT_USER_DISABLED_ROWS } from '../../src/gateway/overlays.js'
 import { parsePatch } from '../../src/gateway/patches.js'
 import { findRunning } from '../../src/gateway/busy.js'
 
@@ -80,6 +80,28 @@ const MCP_SERVERS = [
   { serverName: 'firecrawl', url: 'http://localhost:3000/mcp' },
   { serverName: 'playwright', url: 'http://localhost:8931/mcp' },
 ]
+
+test('overlay loads the pt-BR language pack for both roles, by absolute path', () => {
+  assert.deepEqual([...LANGUAGE_PACKS], ['dsh-locale-pt-br'])
+  const rows = languagePackRows(LANGUAGE_PACKS, (name) => `/opt/dsh-ha/node_modules/${name}/index.js`)
+  assert.deepEqual(rows, [{ id: 'dsh-locale-pt-br', name: '/opt/dsh-ha/node_modules/dsh-locale-pt-br/index.js' }])
+  for (const role of ['admin', 'user']) {
+    const patch = parsePatch(buildOverlay({ role, handshakeFile: '/h', languagePackRows: rows }))
+    const inserts = patch.flatMap((r) => (Array.isArray(r.insert) ? r.insert : []))
+    assert.deepEqual(inserts.find((r) => r.id === 'dsh-locale-pt-br'), rows[0], role)
+    // Nothing in the overlay disables it.
+    assert.ok(!patch.some((r) => r.id === 'dsh-locale-pt-br' && r.disabled), role)
+  }
+  assert.ok(!DEFAULT_USER_DISABLED_ROWS.includes('dsh-locale-pt-br'))
+})
+
+test('a language pack that is not installed is left out', () => {
+  const rows = languagePackRows(['dsh-locale-pt-br', 'not-installed'], (name) => {
+    if (name === 'not-installed') throw new Error('MODULE_NOT_FOUND')
+    return `/x/${name}/index.js`
+  })
+  assert.deepEqual(rows.map((r) => r.id), ['dsh-locale-pt-br'])
+})
 
 test('overlay adds one dsh-mcp-client row per server for both roles', () => {
   for (const role of ['admin', 'user']) {

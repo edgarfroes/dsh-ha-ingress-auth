@@ -7,6 +7,7 @@
     "@deepseek-ai/dsh": "0.1.7-alpha.2",
     "@deepseek-ai/dsh-atomic-write": "0.1.7-alpha.2",
     "@deepseek-ai/dsh-mcp-client": "0.1.7-alpha.2",
+    "dsh-locale-pt-br": "https://github.com/edgarfroes/dsh-locale-pt-br/releases/download/v0.1.0/dsh-locale-pt-br-0.1.0.tgz",
     "js-yaml": "4.3.2"
   },
   "overrides": {

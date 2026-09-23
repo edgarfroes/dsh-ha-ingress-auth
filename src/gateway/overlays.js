@@ -3,6 +3,7 @@
 // where everything security-relevant goes.
 
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 import { dumpPatch } from './patches.js'
 
 export const HOST_PLUGIN_PATH = fileURLToPath(new URL('../plugin/host.js', import.meta.url))
@@ -31,6 +32,33 @@ export const DEFAULT_USER_DISABLED_ROWS = Object.freeze([
   'ui-deliverables', // lists files the agent wrote; needs file preview
 ])
 
+/** Language packs every child loads, whatever its role. Each is a client
+ * plugin package installed in the app runtime; dsh serves its browser bundle
+ * and lists the language in Settings → General → Language, where each user
+ * picks their own (the `locale` row stays a per-user preference). */
+export const LANGUAGE_PACKS = Object.freeze(['dsh-locale-pt-br'])
+
+const requireHere = createRequire(import.meta.url)
+
+/**
+ * Loader rows for the installed language packs. dsh resolves a bare row name
+ * from the overlay file's own directory, where no packages are installed, so
+ * each row names the package entry by absolute path (as the host plugin row
+ * does); dsh finds the package, and its client bundle, from there. A pack that
+ * is not installed is left out.
+ * @param {readonly string[]} [packs]
+ * @param {(name: string) => string} [resolve]
+ */
+export function languagePackRows(packs = LANGUAGE_PACKS, resolve = (name) => requireHere.resolve(name)) {
+  const rows = []
+  for (const name of packs) {
+    let entry
+    try { entry = resolve(name) } catch { continue }
+    rows.push({ id: name, name: entry })
+  }
+  return rows
+}
+
 /**
  * @param {{
  *   role: 'admin' | 'user',
@@ -42,6 +70,7 @@ export const DEFAULT_USER_DISABLED_ROWS = Object.freeze([
  *   userTools?: readonly string[],
  *   mcpServers?: readonly { serverName: string, url: string }[],
  *   extraRows?: any[],
+ *   languagePackRows?: { id: string, name: string }[],
  * }} opts
  */
 export function buildOverlay(opts) {
@@ -54,7 +83,7 @@ export function buildOverlay(opts) {
   if (opts.role === 'user' && opts.userTools) pluginConfig.userTools = [...opts.userTools]
 
   const rows = [
-    { insert: [{ id: 'dsh-ha-ingress-auth', name: HOST_PLUGIN_PATH, config: pluginConfig }] },
+    { insert: [{ id: 'dsh-ha-ingress-auth', name: HOST_PLUGIN_PATH, config: pluginConfig }, ...(opts.languagePackRows ?? languagePackRows())] },
     // One dsh-mcp-client entry per configured remote MCP server. This overlay
     // is the last layer, so every role gets them; an unreachable server only
     // logs a warning (failOnStartupError defaults to false).

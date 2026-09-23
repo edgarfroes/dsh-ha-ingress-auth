@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { resolveConfig, makeUserToolGuard, DEFAULT_USER_TOOLS, apply } from '../../src/plugin/host.js'
-import { buildOverlay } from '../../src/gateway/overlays.js'
+import { buildOverlay, parseMcpServers, buildMcpRows } from '../../src/gateway/overlays.js'
 import { parsePatch } from '../../src/gateway/patches.js'
 import { findRunning } from '../../src/gateway/busy.js'
 
@@ -11,6 +11,19 @@ test('tool guard allows the allow-list only', () => {
   for (const name of ['bash', 'pwsh', 'read', 'write', 'edit', 'glob', 'grep', 'run_code', 'job_kill', 'cordis_inspect_query']) {
     assert.match(guard({ name }), /administrators/)
   }
+})
+
+test('tool guard supports trailing-* prefix entries', () => {
+  const guard = makeUserToolGuard(['web_search', 'mcp__firecrawl__*'])
+  assert.equal(guard({ name: 'web_search' }), undefined)
+  assert.equal(guard({ name: 'mcp__firecrawl__search' }), undefined)
+  assert.equal(guard({ name: 'mcp__firecrawl__scrape' }), undefined)
+  assert.match(guard({ name: 'mcp__playwright__browser_navigate' }), /administrators/)
+  assert.match(guard({ name: 'bash' }), /administrators/)
+  // A star in the middle is not a wildcard: the entry stays exact.
+  const exact = makeUserToolGuard(['we*ird'])
+  assert.equal(exact({ name: 'we*ird' }), undefined)
+  assert.match(exact({ name: 'weird' }), /administrators/)
 })
 
 test('config defaults: unknown role is user; users get General-only settings', () => {
@@ -61,6 +74,53 @@ test('user overlay disables admin surfaces; admin overlay shares credentials', (
   assert.equal(admin.find((r) => r.id === 'credentials').config.path, '/data/shared/credentials.yaml')
   assert.equal(admin.filter((r) => r.disabled === true).length, 0)
   assert.equal(admin.find((r) => r.id === 'ui-settings'), undefined)
+})
+
+const MCP_SERVERS = [
+  { serverName: 'firecrawl', url: 'http://localhost:3000/mcp' },
+  { serverName: 'playwright', url: 'http://localhost:8931/mcp' },
+]
+
+test('overlay adds one dsh-mcp-client row per server for both roles', () => {
+  for (const role of ['admin', 'user']) {
+    const patch = parsePatch(buildOverlay({ role, handshakeFile: '/h', documentsDirectory: '/w', mcpServers: MCP_SERVERS }))
+    const inserts = patch.flatMap((r) => (Array.isArray(r.insert) ? r.insert : []))
+    for (const server of MCP_SERVERS) {
+      const row = inserts.find((r) => r.id === `mcp-${server.serverName}`)
+      assert.ok(row, `${role}: mcp-${server.serverName}`)
+      assert.equal(row.name, '@deepseek-ai/dsh-mcp-client')
+      assert.deepEqual(row.config, { serverName: server.serverName, transport: 'streamable-http', url: server.url })
+    }
+  }
+  // No mcp_servers option, no rows: the stock overlay is unchanged.
+  for (const role of ['admin', 'user']) {
+    const patch = parsePatch(buildOverlay({ role, handshakeFile: '/h' }))
+    assert.equal(patch.filter((r) => Array.isArray(r.insert)).length, 1)
+  }
+})
+
+test('parseMcpServers parses name=url lines and rejects malformed input', () => {
+  assert.deepEqual(parseMcpServers(undefined), [])
+  assert.deepEqual(parseMcpServers(''), [])
+  assert.deepEqual(parseMcpServers('   \n# only a comment\n'), [])
+  assert.deepEqual(
+    parseMcpServers('# comment\nfirecrawl=http://localhost:3000/mcp\n\nplaywright=http://localhost:8931/mcp#no space'),
+    MCP_SERVERS,
+  )
+  assert.throws(() => parseMcpServers('just a word'), /name=url/)
+  assert.throws(() => parseMcpServers('bad name=http://x/mcp'), /name=url/)
+  assert.throws(() => parseMcpServers('ok=ftp://x/mcp'), /name=url/)
+  assert.throws(() => parseMcpServers('ok=b=2'), /name=url/)
+  assert.throws(() => parseMcpServers('x=http://a/mcp\nx=http://b/mcp'), /duplicate/)
+  assert.throws(() => parseMcpServers('a'.repeat(33) + '=http://x/mcp'), /name=url/)
+})
+
+test('buildMcpRows emits streamable-http entries with the raw url', () => {
+  const rows = buildMcpRows(MCP_SERVERS)
+  assert.deepEqual(rows, MCP_SERVERS.map((s) => ({
+    insert: [{ id: `mcp-${s.serverName}`, name: '@deepseek-ai/dsh-mcp-client', config: { serverName: s.serverName, transport: 'streamable-http', url: s.url } }],
+  })))
+  assert.deepEqual(buildMcpRows(undefined), [])
 })
 
 test('findRunning finds a running session anywhere in the answer', () => {

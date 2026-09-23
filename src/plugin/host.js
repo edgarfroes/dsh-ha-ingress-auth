@@ -92,15 +92,28 @@ export function resolveConfig(raw = {}) {
 }
 
 /**
- * Build the guard used for non-admin children.
+ * Build the guard used for non-admin children. An entry ending in `*` (for
+ * example `mcp__firecrawl__*`) allows every tool with that name prefix; other
+ * entries match exactly. Anything unmatched is denied: an allow-list fails
+ * safe.
  * @param {readonly string[]} allowed
  * @returns {(execution: { name: string }) => string | undefined}
  */
 export function makeUserToolGuard(allowed) {
-  const set = new Set(allowed)
-  return (execution) => set.has(execution.name)
-    ? undefined
-    : `The tool "${execution.name}" is available to Home Assistant administrators only.`
+  const exact = new Set()
+  const prefixes = []
+  for (const entry of allowed) {
+    if (typeof entry !== 'string') continue
+    if (entry.endsWith('*')) prefixes.push(entry.slice(0, -1))
+    else exact.add(entry)
+  }
+  return (execution) => {
+    if (exact.has(execution.name)) return undefined
+    for (const prefix of prefixes) {
+      if (execution.name.startsWith(prefix)) return undefined
+    }
+    return `The tool "${execution.name}" is available to Home Assistant administrators only.`
+  }
 }
 
 function writeAtomic(path, text) {

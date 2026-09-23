@@ -9,11 +9,7 @@ description: DeepSeek Harness with Home Assistant users, admin-only settings and
 arch:
   - amd64
   - aarch64
-startup: application
-boot: auto
-init: true
 ingress: true
-ingress_port: 8099
 ingress_stream: true
 panel_title: DeepSeek Harness
 panel_icon: mdi:robot-outline
@@ -22,8 +18,12 @@ panel_icon: mdi:robot-outline
 panel_admin: false
 # Needed to read HA users and their groups (Core WebSocket config/auth/list).
 homeassistant_api: true
-backup: hot
 options:
   idle_timeout_minutes: 30
+  # One MCP server per line as "name=url". Each becomes a Streamable HTTP MCP
+  # entry in every user's dsh (tools like mcp__name__tool). Empty disables;
+  # set your own servers in the app's Settings page on Home Assistant.
+  mcp_servers: ""
 schema:
   idle_timeout_minutes: int(0,1440)
+  mcp_servers: str?

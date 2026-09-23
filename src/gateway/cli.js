@@ -9,7 +9,8 @@ import { Layout } from './layout.js'
 import { UserDirectory, fetchUsersOverWebSocket } from './roles.js'
 import { ChildManager, UidMap } from './children.js'
 import { SharedConfig } from './shared-config.js'
-import { buildOverlay } from './overlays.js'
+import { buildOverlay, parseMcpServers } from './overlays.js'
+import { DEFAULT_USER_TOOLS } from '../plugin/host.js'
 import { createGatewayServer, archiveDeletedUsers } from './server.js'
 import { isBusy } from './busy.js'
 
@@ -50,11 +51,25 @@ function readOptions(dataRoot) {
 
 const layout = new Layout(values.data)
 const options = readOptions(values.data)
+
+// Remote MCP servers (mcp_servers app option) reach every child through the
+// overlay; for non-admins the tool guard opens just those prefixes.
+let mcpServers
+try {
+  mcpServers = parseMcpServers(options.mcp_servers)
+} catch (error) {
+  mcpServers = []
+  log(`[gateway] bad mcp_servers option ignored: ${error instanceof Error ? error.message : String(error)}`)
+}
+if (mcpServers.length > 0) log(`[gateway] mcp servers: ${mcpServers.map((s) => `${s.serverName}=${s.url}`).join(', ')}`)
 const envNumber = (name) => (process.env[name] !== undefined && process.env[name] !== '' && Number.isFinite(Number(process.env[name])) ? Number(process.env[name]) : undefined)
 const idleMinutes = envNumber('DSH_HA_IDLE_MINUTES') ?? (Number.isFinite(options.idle_timeout_minutes) ? options.idle_timeout_minutes : 30)
 const cullIntervalMs = envNumber('DSH_HA_CULL_INTERVAL_MS') ?? 30000
 const archiveIntervalMs = envNumber('DSH_HA_ARCHIVE_INTERVAL_MS') ?? 5 * 60000
-const userTools = Array.isArray(options.user_tools) && options.user_tools.length > 0 ? options.user_tools : undefined
+const userToolsRaw = Array.isArray(options.user_tools) && options.user_tools.length > 0 ? options.user_tools : undefined
+const userTools = mcpServers.length > 0
+  ? [...(userToolsRaw ?? DEFAULT_USER_TOOLS), ...mcpServers.map((s) => `mcp__${s.serverName}__*`)]
+  : userToolsRaw
 const trustedPeers = values['trusted-peer'] ?? (process.env.DSH_HA_TRUSTED_PEERS?.split(',') ?? ['172.30.32.2'])
 const isolate = !values['no-isolate'] && typeof process.getuid === 'function' && process.getuid() === 0
 const token = process.env.SUPERVISOR_TOKEN
@@ -105,6 +120,7 @@ const children = new ChildManager({
     sharedCredentialsFile: layout.sharedCredentials,
     documentsDirectory: layout.user(child.key).workspace,
     userTools,
+    mcpServers,
   }),
   prepare: (child) => (child.role === 'admin' ? shared.prepareAdmin(child) : shared.prepareUser(child)),
   childEnv: (child) => {

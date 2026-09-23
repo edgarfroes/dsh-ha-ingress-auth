@@ -32,6 +32,7 @@ roles:
 | Option | Default | Meaning |
 |---|---|---|
 | `idle_timeout_minutes` | `30` | Stop a user's dsh after this many minutes with no open browser and no reply running (`0` = never). Admins' dsh is never stopped, so scheduled work keeps running. The next visit starts it again with its history. |
+| `mcp_servers` | *(blank)* | Remote MCP servers every user's dsh connects to, one `name=url` per line (Streamable HTTP). Tools appear as `mcp__name__tool` and non-admins may call exactly those tool families. A server that is down only logs a warning; dsh starts without its tools. |
 
 ## How it works
 
@@ -62,3 +63,6 @@ deleted, their data is moved to `/data/archive/`, not deleted.
 - A user's dsh receives the admins' API keys as environment variables. Users
   have no shell, file or terminal tools, which is what keeps the key values
   out of their reach.
+- Tools configured through `mcp_servers` run on another machine: that host
+  must be on for them to work, calls can spend external quotas (for example
+  search credits), and browser tools drive that host's own browser.

@@ -7,6 +7,7 @@ test.describe.configure({ mode: 'serial' })
 test('first admin sees onboarding and can store an API key for everyone', async ({ browser }) => {
   const { context, page } = await openAs(browser, 'owner')
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('dialog').filter({ hasText: 'Get started' }).getByRole('button', { name: 'Add API Key' }).click()
   const dialog = page.getByRole('dialog').filter({ hasText: 'Add an API key to get started' })
   await expect(dialog).toBeVisible()
   await dialog.getByRole('textbox').fill('sk-e2e-dummy-deepseek-key')

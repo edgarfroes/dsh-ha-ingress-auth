@@ -21,7 +21,7 @@ test('non-admin sees Settings → General only, no Plugins, no Permission', asyn
   for (const name of ['Language', 'Appearance', 'Font size', 'Send behavior while busy']) {
     await expect(settings.getByText(name, { exact: true })).toBeVisible()
   }
-  for (const name of ['Work details', 'Performance & usage', 'Developer tools']) {
+  for (const name of ['Work details', 'Performance & usage', 'Show coding view']) {
     await expect(settings.getByText(name, { exact: true })).toBeHidden()
   }
   await context.close()
@@ -32,7 +32,7 @@ test('admins keep every General row', async ({ browser }) => {
   await dismissFirstRun(page)
   await expect(page.getByText('Workspaces', { exact: true }).first()).toBeVisible()
   const settings = await openSettings(page)
-  for (const name of ['Language', 'Appearance', 'Font size', 'Work details', 'Performance & usage', 'Developer tools', 'Send behavior while busy', 'Permission']) {
+  for (const name of ['Language', 'Appearance', 'Font size', 'Work details', 'Performance & usage', 'Show coding view', 'Send behavior while busy', 'Permission']) {
     await expect(settings.getByText(name, { exact: true })).toBeVisible()
   }
   await context.close()

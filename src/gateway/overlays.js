@@ -115,7 +115,7 @@ export function buildOverlay(opts) {
     }
   } else {
     for (const id of opts.userDisabledRows ?? DEFAULT_USER_DISABLED_ROWS) rows.push({ id, disabled: true })
-    // Developer tools stay off for non-admins; the switch is hidden (host.js)
+    // The coding view (Developer tools before dsh 0.2) stays off for non-admins; the switch is hidden (host.js)
     // and this overlay outranks anything the user saves.
     rows.push({ id: 'ui-settings', name: '@deepseek-ai/dsh-client-ui-settings', config: { enabled: false } })
   }

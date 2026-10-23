@@ -167,8 +167,9 @@ server.listen(PORT, LISTEN, () => console.log(`fake-ha on ${LISTEN}:${PORT} → 
 //   after a tool result                        → "tool result: <first 200 chars>"
 //   otherwise                                  → "stub reply: <last user text>"
 
-/** Text parts dsh adds on its own (runtime context snapshots, reminders). */
-const isHarnessText = (t) => /^\s*(Current runtime context|<system-reminder>|<runtime)/.test(t)
+/** Text parts dsh adds on its own (runtime context snapshots, reminders, the
+ * dsh 0.2 time context). */
+const isHarnessText = (t) => /^\s*(Current runtime context|<system-reminder>|<runtime|Time sampled while preparing)/.test(t)
 
 function lastUserText(messages) {
   for (let i = messages.length - 1; i >= 0; i--) {

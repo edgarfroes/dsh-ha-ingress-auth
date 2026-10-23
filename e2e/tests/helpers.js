@@ -40,17 +40,28 @@ export async function dismissFirstRun(page) {
     if (await button.isEnabled().catch(() => false)) await button.click({ timeout: 2_000 }).catch(() => {})
     return true
   }
+  // dsh 0.2 asks "Get started" (sign in or add a key) on every load until a
+  // key exists; its Close button saves nothing.
+  const getStarted = page.getByRole('dialog').filter({ hasText: 'Get started' }).getByRole('button', { name: 'Close' })
   let quiet = 0
   const deadline = Date.now() + 30_000
   while (quiet < 6 && Date.now() < deadline) {
-    if (await clickIfReady(cont) || await clickIfReady(later)) quiet = 0
+    if (await clickIfReady(cont) || await clickIfReady(later) || await clickIfReady(getStarted)) quiet = 0
     else quiet++
     await page.waitForTimeout(500)
   }
 }
 
+/** Open Settings: admins reach it through the account menu (dsh 0.2), non-admins,
+ * whose account menu is locked down, through the sidebar entry. */
 export async function openSettings(page) {
-  await page.getByText('Settings', { exact: true }).last().click()
+  const account = page.getByRole('button', { name: 'Account menu' })
+  if (await account.isVisible().catch(() => false)) {
+    await account.click()
+    await page.getByRole('menuitem', { name: /^Settings/ }).or(page.getByRole('button', { name: /^Settings/ })).first().click()
+  } else {
+    await page.getByText('Settings', { exact: true }).last().click()
+  }
   return page.getByRole('dialog')
 }
 

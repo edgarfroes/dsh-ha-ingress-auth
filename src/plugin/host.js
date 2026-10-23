@@ -36,7 +36,7 @@ export const DEFAULT_USER_TOOLS = Object.freeze([
 export const GENERAL_ONLY_STYLE = 'nav:has([data-slot="settings.header"]) button:not(:first-child){display:none!important}'
 
 /** Settings → General rows non-admins do not get: Work details and Performance
- * & usage (ui-chat) and Developer tools (ui-settings-general). The rows carry
+ * & usage (ui-chat) and Show coding view (ui-settings-general). The rows carry
  * no ids; each is matched by its component's row class as a direct child of
  * the public `settings.general.item` slot, which wraps all General rows. Those class names come from dsh's build and are
  * stable for a pinned version; the E2E suite fails if an upgrade changes them. */

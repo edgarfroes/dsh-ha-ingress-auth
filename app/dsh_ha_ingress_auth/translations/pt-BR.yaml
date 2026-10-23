@@ -24,3 +24,19 @@ configuration:
       url:
         name: URL do servidor
         description: Endpoint MCP do servidor, por exemplo http://meu-servidor:3000/mcp.
+  plugins:
+    name: Plugins extras do dsh
+    description: >-
+      ⚠️ Cuidado: um plugin roda dentro do DeepSeek Harness com acesso total
+      aos dados deste app, aos chats de todos os usuários e às credenciais
+      salvas. Adicione só pacotes em que você confia e que revisou, e fixe
+      uma versão exata. Uma especificação de pacote npm por linha, por
+      exemplo "dsh-plugin-foo@1.2.3", um endereço git ou a URL de um
+      tarball; precisa ser um bundle de plugin do dsh. Os plugins são
+      instalados quando o app inicia (precisa de internet nesse momento) e
+      carregam para todos os usuários; remover uma linha desinstala no
+      próximo reinício. Scripts de instalação das dependências não rodam, e
+      não-admins continuam com só as ferramentas que este app permite.
+      Encontre plugins na
+      [lista dsh-plugin do npm](https://www.npmjs.com/search?q=keywords:dsh-plugin)
+      (não é uma lista verificada).

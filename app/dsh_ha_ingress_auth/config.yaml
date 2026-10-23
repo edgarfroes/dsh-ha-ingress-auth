@@ -24,8 +24,13 @@ options:
   # server (Streamable HTTP). Tools appear as mcp__name__tool. An empty list
   # disables. Edit in the app's Settings page on Home Assistant.
   mcp_servers: []
+  # Extra dsh plugins: one npm package spec per row, installed at startup for
+  # every user. Plugins run with full access; add only ones you trust.
+  plugins: []
 schema:
   idle_timeout_minutes: int(0,1440)
   mcp_servers:
     - name: str
       url: url
+  plugins:
+    - str

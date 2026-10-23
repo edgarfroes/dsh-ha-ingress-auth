@@ -10,6 +10,7 @@ import { UserDirectory, fetchUsersOverWebSocket } from './roles.js'
 import { ChildManager, UidMap } from './children.js'
 import { SharedConfig } from './shared-config.js'
 import { buildOverlay, parseMcpServers } from './overlays.js'
+import { parsePluginSpecs, installPlugins, pluginRows } from './plugins.js'
 import { DEFAULT_USER_TOOLS } from '../plugin/host.js'
 import { createGatewayServer, archiveDeletedUsers } from './server.js'
 import { isBusy } from './busy.js'
@@ -89,6 +90,22 @@ if (isolate) {
   chmodSync(layout.adminRoot, 0o700)
 }
 
+// Extra dsh plugins (plugins app option): installed once per start into
+// /data/shared/plugins, then mounted in every child's overlay.
+let extraPluginRows = []
+try {
+  const specs = parsePluginSpecs(options.plugins)
+  const pluginsDir = join(layout.sharedRoot, 'plugins')
+  if (specs.length > 0 || existsSync(pluginsDir)) {
+    if (specs.length > 0) log(`[gateway] installing plugins: ${specs.join(', ')}`)
+    const result = installPlugins({ specs, dir: pluginsDir })
+    if (result.ok) extraPluginRows = pluginRows(pluginsDir, log)
+    else log(`[gateway] plugin install failed, starting without plugins: ${result.error}`)
+  }
+} catch (error) {
+  log(`[gateway] bad plugins option ignored: ${error instanceof Error ? error.message : String(error)}`)
+}
+
 if (!token) log('[gateway] SUPERVISOR_TOKEN is not set: every user will be refused until it is (homeassistant_api: true)')
 
 const directory = new UserDirectory({
@@ -121,6 +138,7 @@ const children = new ChildManager({
     documentsDirectory: layout.user(child.key).workspace,
     userTools,
     mcpServers,
+    pluginRows: extraPluginRows,
   }),
   prepare: (child) => (child.role === 'admin' ? shared.prepareAdmin(child) : shared.prepareUser(child)),
   childEnv: (child) => {

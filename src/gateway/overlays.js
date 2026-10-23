@@ -69,6 +69,7 @@ export function languagePackRows(packs = LANGUAGE_PACKS, resolve = (name) => req
  *   userDisabledRows?: readonly string[],
  *   userTools?: readonly string[],
  *   mcpServers?: readonly { serverName: string, url: string }[],
+ *   pluginRows?: any[],
  *   extraRows?: any[],
  *   languagePackRows?: { id: string, name: string }[],
  * }} opts
@@ -83,6 +84,9 @@ export function buildOverlay(opts) {
   if (opts.role === 'user' && opts.userTools) pluginConfig.userTools = [...opts.userTools]
 
   const rows = [
+    // Rows from the `plugins` app option come first, so every row below
+    // (the host plugin and the non-admin lockdown) outranks them.
+    ...(opts.pluginRows ?? []),
     { insert: [{ id: 'dsh-ha-ingress-auth', name: HOST_PLUGIN_PATH, config: pluginConfig }, ...(opts.languagePackRows ?? languagePackRows())] },
     // One dsh-mcp-client entry per configured remote MCP server. This overlay
     // is the last layer, so every role gets them; an unreachable server only

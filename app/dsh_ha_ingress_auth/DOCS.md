@@ -38,6 +38,7 @@ roles:
 |---|---|---|
 | `idle_timeout_minutes` | `30` | Stop a user's dsh after this many minutes with no open browser and no reply running (`0` = never). Admins' dsh is never stopped, so scheduled work keeps running. The next visit starts it again with its history. |
 | `mcp_servers` | *(empty)* | Remote MCP servers every user's dsh connects to, added as repeatable name/URL pairs (Streamable HTTP). Tools appear as `mcp__name__tool` and non-admins may call exactly those tool families. A server that is down only logs a warning; dsh starts without its tools. |
+| `plugins` | *(empty)* | Extra dsh plugin bundles, one npm package spec per row (`name@1.2.3`, git address or tarball URL). Installed at app start into `/data/shared/plugins` (install scripts off) and loaded for every user; a failed install only logs and the app starts without them. **Plugins run with full access to the app's data, chats and credentials: add only packages you trust, pinned to an exact version.** Browse the [npm dsh-plugin keyword](https://www.npmjs.com/search?q=keywords:dsh-plugin) (not vetted). |
 
 ## How it works
 

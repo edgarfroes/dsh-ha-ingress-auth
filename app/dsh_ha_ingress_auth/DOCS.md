@@ -63,7 +63,7 @@ deleted, their data is moved to `/data/archive/`, not deleted.
 
 ## Known limits
 
-- dsh is pinned to `0.1.7-alpha.2`, an alpha release.
+- dsh is pinned to `0.2.1-rc.3`, a release candidate.
 - Settings persistence behind a proxy relies on a dsh page setting meant for
   dsh's own apps (`ownsHost`) until dsh ships an official option.
 - A user's dsh receives the admins' API keys as environment variables. Users

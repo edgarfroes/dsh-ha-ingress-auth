@@ -20,6 +20,9 @@ export const DEFAULT_USER_DISABLED_ROWS = Object.freeze([
   'ui-settings-plugin-inventory',
   'ui-plugin-manager', // sidebar "Plugins" page
   'plugin-manager', // host-side package installs
+  'entry-customization', //   its More-menu launchers (waits on pluginNavigation)
+  'ui-plugin-market', // Plugins → Discover (third-party plugin indexes)
+  'plugin-market', //   and its host side
   'ui-settings-account', // DeepSeek platform account
   'ui-permission', // Settings → General → Permission and the /permission picker
   'ui-sidebar-terminal', // the sidebar terminal is a shell
